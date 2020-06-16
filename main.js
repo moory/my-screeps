@@ -1,31 +1,31 @@
 const HOME = Game.spawns['Spawn1'];
 const ROOM = Game.rooms['W18S23'];
-const CREEP_TOTAL = 13;
-const CREEP_NAME = 'Worker';
+const CREEP_TOTAL = 10;
+// const CREEP_NAME = 'Worker';
+const Priority=['Home','Repair','Build','Upgrade','Attack'];
+
 
 
 module.exports.loop = function () {
     let creepsCount = 0
+    let workName=''
 
-    for (const i in Game.creeps) {
+    for(let i=0;i<Priority.length;i++){
+        if(feasibility(Priority[i])){
+            workName=Priority[i]
+            break;
+        }
+    }
+
+    for (const k in Game.creeps) {
         creepsCount++;
+
+        work(workName,Game.creeps[k],HOME)
+
     }
 
     if (creepsCount < CREEP_TOTAL) {
         born();
-    }
-
-    for (let k in Game.creeps) {
-        if (k === 'Worker0' || k === 'Worker1' || k === 'Worker3' || k === 'Worker4' || k === 'Worker5') {
-            work(Game.creeps[k], HOME, 0)
-        } else if (k === 'Worker99') {
-            build(Game.creeps[k]);
-        } else if (k === 'Worker99') {
-            repair(Game.creeps[k])
-        } else {
-            upgradeRCL(Game.creeps[k])
-        }
-
     }
 
 }
@@ -89,20 +89,49 @@ const born = () => {
 
 }
 
+//可行性分析
+const feasibility=(work)=>{
+    if(work==='Home'){
+        return HOME.energy !== HOME.energyCapacity;
+    }else if(work==='Build'){
+        for (let k in Game.constructionSites) {
+            return true
+        }
+        return false
+    }else if(work==='Repair'){
+        return false
+    }else if(work==='Upgrade'){
+        return true
+    }else if(work==='Attack'){
+        return false
+    }
+    return false
+}
+
+const work=(w,c,t,s)=>{
+    if(w==='Home'){
+      home(c,t,s)
+    }else if(w==='Build'){
+        build(c)
+    }else if(w==='Repair'){
+        repair(c)
+    }else if(w==='Upgrade'){
+        upgradeRCL(c)
+    }else if(w==='Attack'){
+        console.log('error')
+    }
+}
+
 /*
-* 工作（采集，home溢出时升级RCL）
+* 采集
 * */
-const work = (c, t, s) => {
+const home = (c, t, s) => {
     if (c.carry.energy < c.carryCapacity) {
         let source = nearGold(c);
         if (c.harvest(source) === ERR_NOT_IN_RANGE) {
             c.moveTo(source);
         }
     } else {
-        // if(t.energy===t.energyCapacity){
-        //     upgradeRCL(c);
-        //     return;
-        // }
         if (c.transfer(t, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
             c.moveTo(t);
         }
