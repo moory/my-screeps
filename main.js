@@ -3,19 +3,24 @@ const ROOM = Game.rooms['W18S23'];
 const CREEP_TOTAL = 10;
 // const CREEP_NAME = 'Worker';
 const Priority=['Home','Repair','Build','Upgrade','Attack'];
-
+let workName='Upgrade'
 
 
 module.exports.loop = function () {
-    let creepsCount = 0
-    let workName=''
 
-    for(let i=0;i<Priority.length;i++){
-        if(feasibility(Priority[i])){
-            workName=Priority[i]
-            break;
+    if(Game.time%10===0){
+
+        for(let i=0;i<Priority.length;i++){
+            if(feasibility(Priority[i])){
+                workName=Priority[i]
+                break;
+            }
         }
+        return;
     }
+
+    let creepsCount = 0
+
 
     for (const k in Game.creeps) {
         creepsCount++;
@@ -99,6 +104,11 @@ const feasibility=(work)=>{
         }
         return false
     }else if(work==='Repair'){
+        for (let k in Game.structures) {
+            if (Game.structures[k].hits<Game.structures[k].hitsMax){
+                return true
+            }
+        }
         return false
     }else if(work==='Upgrade'){
         return true
@@ -119,6 +129,9 @@ const work=(w,c,t,s)=>{
         upgradeRCL(c)
     }else if(w==='Attack'){
         console.log('error')
+    }
+    if(!w){
+        console.log('e')
     }
 }
 
@@ -143,30 +156,38 @@ const home = (c, t, s) => {
 * */
 const build = (c) => {
     for (let k in Game.constructionSites) {
+
         let target = Game.constructionSites[k];
         let source = nearGold(c);
+
         if (c.carry.energy === 0) {
 
             if (c.harvest(source) === ERR_NOT_IN_RANGE) {
                 c.moveTo(source);
+                return;
             }
+
         } else if (c.carry.energy === c.carryCapacity) {
             if (c.build(target) === ERR_NOT_IN_RANGE) {
                 c.moveTo(target);
+                return;
             }
         } else if (calcPath(target, c) > calcPath(source, c)) {//离矿更近
 
             let sources = c.room.find(FIND_SOURCES);
             if (c.harvest(source) === ERR_NOT_IN_RANGE) {
                 c.moveTo(source);
+                return;
             }
+
         } else {
             if (c.build(target) === ERR_NOT_IN_RANGE) {
                 c.moveTo(target);
+                return;
             }
         }
 
-        return;
+
     }
 }
 
@@ -198,32 +219,34 @@ const upgradeRCL = (c) => {
 
 /*维修*/
 const repair = (c) => {
+    let target=null;
     for (let k in Game.structures) {
-        let target = Game.structures[k];
-        let source = nearGold(c);
-        if (c.carry.energy === 0) {
-
-            if (c.harvest(source) === ERR_NOT_IN_RANGE) {
-                c.moveTo(source);
-            }
-        } else if (c.carry.energy === c.carryCapacity) {
-            if (c.repair(target) === ERR_NOT_IN_RANGE) {
-                c.moveTo(target);
-            }
-        } else if (calcPath(target, c) > calcPath(source, c)) {//离矿更近
-
-            let sources = c.room.find(FIND_SOURCES);
-            if (c.harvest(source) === ERR_NOT_IN_RANGE) {
-                c.moveTo(source);
-            }
-        } else {
-            if (c.repair(target) === ERR_NOT_IN_RANGE) {
-                c.moveTo(target);
-            }
+        if (Game.structures[k].hits<Game.structures[k].hitsMax){
+            target = Game.structures[k];
+            break;
         }
-
-        return;
     }
+
+    let source = nearGold(c);
+    if (c.carry.energy === 0) {
+
+        if (c.harvest(source) === ERR_NOT_IN_RANGE) {
+            c.moveTo(source);
+        }
+    } else if (c.carry.energy === c.carryCapacity) {
+        if (c.repair(target) === ERR_NOT_IN_RANGE) {
+            c.moveTo(target);
+        }
+    } else if (calcPath(target, c) > calcPath(source, c)) {//离矿更近
+        if (c.harvest(source) === ERR_NOT_IN_RANGE) {
+            c.moveTo(source);
+        }
+    } else {
+        if (c.repair(target) === ERR_NOT_IN_RANGE) {
+            c.moveTo(target);
+        }
+    }
+
 }
 
 /*
