@@ -281,6 +281,11 @@ const repair = (c) => {
 * */
 const nearGold = (c) => {
     let sources = ROOM.find(FIND_SOURCES);
+
+    if(c.name.indexOf('1')===-1){
+        return sources[1]
+    }
+
     if (calcPath(sources[0], c) < calcPath(sources[1], c)) {
         return sources[0]
     } else {
