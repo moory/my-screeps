@@ -1,21 +1,48 @@
 const HOME = Game.spawns['Spawn1'];
-const ROOM = Game.rooms['W18S23'];
-const CREEP_TOTAL = 10;
+const ROOM = Game.rooms['E27N47'];
+const CREEP_TOTAL = 12;
 // const CREEP_NAME = 'Worker';
-const Priority=['Home','Repair','Build','Upgrade','Attack'];
-let workName='Upgrade'
+const AllWork = {'Home': '', 'Repair': '', 'Build': '', 'Upgrade': '', 'Attack': ''}
+
+const Priority = {
+    'Worker0': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
+    'Worker1': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
+    'Worker2': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
+    'Worker3': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
+    'Worker4': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
+    'Worker5': ['Repair', 'Home', 'Build', 'Upgrade', 'Attack'],
+    'Worker6': ['Repair', 'Home', 'Build', 'Upgrade', 'Attack'],
+    'Worker7': ['Repair', 'Home', 'Build', 'Upgrade', 'Attack'],
+    'Worker8': ['Build', 'Home', 'Repair', 'Upgrade', 'Attack'],
+    'Worker9': ['Build', 'Home', 'Repair', 'Upgrade', 'Attack'],
+    'Worker10': ['Upgrade', 'Home', 'Repair', 'Build', 'Attack'],
+    'Worker11': ['Upgrade', 'Home', 'Repair', 'Build', 'Attack'],
+}
+
+let workName = {}
 
 
 module.exports.loop = function () {
 
-    if(Game.time%10===0){
+    if (Game.time % 10 === 0) {
 
-        for(let i=0;i<Priority.length;i++){
-            if(feasibility(Priority[i])){
-                workName=Priority[i]
-                break;
+        for (const j in AllWork) {
+            AllWork[j] = feasibility(j)
+        }
+
+        for (const k in Game.creeps) {
+            for(let i=0;i<Priority[k].length;i++){
+
+                let work=Priority[k][i]
+
+                if(AllWork[work]){
+                    workName[k]=work;
+                    break;
+                }
+
             }
         }
+
         return;
     }
 
@@ -25,7 +52,7 @@ module.exports.loop = function () {
     for (const k in Game.creeps) {
         creepsCount++;
 
-        work(workName,Game.creeps[k],HOME)
+        work(workName[k], Game.creeps[k], HOME)
 
     }
 
@@ -95,42 +122,42 @@ const born = () => {
 }
 
 //可行性分析
-const feasibility=(work)=>{
-    if(work==='Home'){
+const feasibility = (work) => {
+    if (work === 'Home') {
         return HOME.energy !== HOME.energyCapacity;
-    }else if(work==='Build'){
+    } else if (work === 'Build') {
         for (let k in Game.constructionSites) {
             return true
         }
         return false
-    }else if(work==='Repair'){
+    } else if (work === 'Repair') {
         for (let k in Game.structures) {
-            if (Game.structures[k].hits<Game.structures[k].hitsMax){
+            if (Game.structures[k].hits < Game.structures[k].hitsMax) {
                 return true
             }
         }
         return false
-    }else if(work==='Upgrade'){
+    } else if (work === 'Upgrade') {
         return true
-    }else if(work==='Attack'){
+    } else if (work === 'Attack') {
         return false
     }
     return false
 }
 
-const work=(w,c,t,s)=>{
-    if(w==='Home'){
-      home(c,t,s)
-    }else if(w==='Build'){
+const work = (w, c, t, s) => {
+    if (w === 'Home') {
+        home(c, t, s)
+    } else if (w === 'Build') {
         build(c)
-    }else if(w==='Repair'){
+    } else if (w === 'Repair') {
         repair(c)
-    }else if(w==='Upgrade'){
+    } else if (w === 'Upgrade') {
         upgradeRCL(c)
-    }else if(w==='Attack'){
+    } else if (w === 'Attack') {
         console.log('error')
     }
-    if(!w){
+    if (!w) {
         console.log('e')
     }
 }
@@ -219,9 +246,9 @@ const upgradeRCL = (c) => {
 
 /*维修*/
 const repair = (c) => {
-    let target=null;
+    let target = null;
     for (let k in Game.structures) {
-        if (Game.structures[k].hits<Game.structures[k].hitsMax){
+        if (Game.structures[k].hits < Game.structures[k].hitsMax) {
             target = Game.structures[k];
             break;
         }
