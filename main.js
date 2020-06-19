@@ -2,7 +2,7 @@ const HOME = Game.spawns['Spawn1'];
 const ROOM = Game.rooms['E27N47'];
 const CREEP_TOTAL = 12;
 // const CREEP_NAME = 'Worker';
-const AllWork = {'Home': '', 'Repair': '', 'Build': '', 'Upgrade': '', 'Attack': ''}
+let AllWork = {'Home': '', 'Repair': '', 'Build': '', 'Upgrade': '', 'Attack': ''}
 
 const Priority = {
     'Worker0': ['Home', 'Repair', 'Build', 'Upgrade', 'Attack'],
@@ -24,11 +24,14 @@ let workName = {}
 
 module.exports.loop = function () {
 
+    AllWork={'Home': '', 'Repair': '', 'Build': '', 'Upgrade': '', 'Attack': ''}
+
     if (Game.time % 10 === 0) {
 
         for (const j in AllWork) {
             AllWork[j] = feasibility(j)
         }
+        console.log(JSON.stringify(AllWork))
 
         for (const k in Game.creeps) {
             for(let i=0;i<Priority[k].length;i++){
@@ -42,7 +45,7 @@ module.exports.loop = function () {
 
             }
         }
-
+        console.log(JSON.stringify(workName))
         return;
     }
 
@@ -52,7 +55,7 @@ module.exports.loop = function () {
     for (const k in Game.creeps) {
         creepsCount++;
 
-        work(workName[k], Game.creeps[k], HOME)
+        work(workName[k], Game.creeps[k], Game.spawns['Spawn1'])
 
     }
 
@@ -124,7 +127,8 @@ const born = () => {
 //可行性分析
 const feasibility = (work) => {
     if (work === 'Home') {
-        return HOME.energy !== HOME.energyCapacity;
+        console.log(Game.spawns['Spawn1'].energy,Game.spawns['Spawn1'].energyCapacity)
+        return Game.spawns['Spawn1'].energy !== Game.spawns['Spawn1'].energyCapacity;
     } else if (work === 'Build') {
         for (let k in Game.constructionSites) {
             return true
@@ -282,7 +286,7 @@ const repair = (c) => {
 const nearGold = (c) => {
     let sources = ROOM.find(FIND_SOURCES);
 
-    if(c.name.indexOf('1')===-1){
+    if(c.name.indexOf('1')!==-1){
         return sources[1]
     }
 
