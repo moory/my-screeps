@@ -128,12 +128,38 @@ var defenseManager$1 = {
   },
 };
 
+var spawnManager$1 = {
+  run(room) {
+    const harvesters = _.filter(Game.creeps, (creep) => creep.memory.role === 'harvester' && creep.room.name === room.name);
+    const builders = _.filter(Game.creeps, (creep) => creep.memory.role === 'builder' && creep.room.name === room.name);
+    const upgraders = _.filter(Game.creeps, (creep) => creep.memory.role === 'upgrader' && creep.room.name === room.name);
+
+    const spawn = room.find(FIND_MY_SPAWNS)[0];
+    if (!spawn || spawn.spawning) {
+      return;
+    }
+
+    if (harvesters.length < 2) {
+      const newName = 'Harvester' + Game.time;
+      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'harvester' } });
+    } else if (upgraders.length < 2) {
+      const newName = 'Upgrader' + Game.time;
+      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'upgrader' } });
+    } else if (builders.length < 2) {
+      const newName = 'Builder' + Game.time;
+      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'builder' } });
+    }
+  }
+};
+
 const creepManager = creepManager$1;
 const structureManager = structureManager$1;
 const defenseManager = defenseManager$1;
+const spawnManager = spawnManager$1;
 
 var roomManager$1 = {
   run(room) {
+    spawnManager.run(room);
     creepManager.run(room);
     structureManager.run(room);
     defenseManager.run(room);
