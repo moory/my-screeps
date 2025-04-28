@@ -1,7 +1,7 @@
-const roomManager = require('./managers/roomManager');
-const memoryManager = require('./managers/memoryManager');
-const cpuManager = require('./managers/cpuManager');
-const { tryCatch } = require('./utils/errorCatcher');
+const roomManager = require('roomManager');
+const memoryManager = require('memoryManager');
+const cpuManager = require('cpuManager');
+const { tryCatch } = require('errorCatcher');
 
 module.exports.loop = function () {
   tryCatch(() => {
