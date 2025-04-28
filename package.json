@@ -2,10 +2,12 @@
   "name": "my-screeps",
   "version": "1.0.0",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch"
+    "build": "rollup -c",
+    "dev": "rollup -c --watch"
   },
   "devDependencies": {
-    "vite": "^5.2.0"
+    "@rollup/plugin-commonjs": "^25.0.5",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.12.0"
   }
 }
