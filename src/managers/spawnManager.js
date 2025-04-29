@@ -9,15 +9,37 @@ module.exports = {
       return;
     }
 
+    const energyAvailable = room.energyAvailable;
+    const energyCapacity = room.energyCapacityAvailable;
+
+    // 生成 creep 的身体部件
+    const generateBody = () => {
+      const parts = Math.floor(energyAvailable / 200); // 每组需要200能量：1WORK+1CARRY+1MOVE
+      const body = [];
+      for (let i = 0; i < parts; i++) {
+        body.push(WORK, CARRY, MOVE);
+      }
+      return body;
+    };
+
+    // 统一生成方法
+    const spawnCreepWithRole = (role) => {
+      const body = generateBody();
+      const newName = role.charAt(0).toUpperCase() + role.slice(1) + Game.time;
+      const result = spawn.spawnCreep(body, newName, { memory: { role } });
+      if (result === OK) {
+        console.log(`Spawning new ${role}: ${newName}`);
+      } else {
+        console.log(`Failed to spawn ${role}: ${result}`);
+      }
+    };
+
     if (harvesters.length < 2) {
-      const newName = 'Harvester' + Game.time;
-      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'harvester' } });
+      spawnCreepWithRole('harvester');
     } else if (upgraders.length < 2) {
-      const newName = 'Upgrader' + Game.time;
-      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'upgrader' } });
+      spawnCreepWithRole('upgrader');
     } else if (builders.length < 2) {
-      const newName = 'Builder' + Game.time;
-      spawn.spawnCreep([WORK, CARRY, MOVE], newName, { memory: { role: 'builder' } });
+      spawnCreepWithRole('builder');
     }
   }
 };
