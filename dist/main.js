@@ -36,7 +36,7 @@ var role_harvester = {
             if (source) {
                 if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
                     // 使用带缓存的移动
-                    if (creep.memory.cachedPath?.length > 0) {
+                    if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         creep.moveByPath(creep.memory.cachedPath);
                         // 更新路径缓存（应对地形变化）
                         if (creep.pos.isNearTo(source)) {
