@@ -56,17 +56,24 @@ module.exports = {
                 body.push(...template.pattern);
             }
 
-            // 调整超预算部分：优先移除 WORK，其次 CARRY，最后 MOVE
+            // 移除多余部件，直到符合当前可用能量（同时保底功能）
             while (_.sum(body.map(p => BODYPART_COST[p])) > energyAvailable) {
                 const idx =
                     body.lastIndexOf(WORK) >= 0 ? body.lastIndexOf(WORK) :
                         body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
                             body.lastIndexOf(MOVE);
+
+                if (body.length <= 3) break; // 最少保留 3 个核心组件
                 if (idx !== -1) body.splice(idx, 1);
                 else break;
             }
 
-            return body.length > 0 ? body : template.base;
+            const finalCost = _.sum(body.map(p => BODYPART_COST[p]));
+            if (finalCost <= energyAvailable && body.includes(WORK) && body.includes(CARRY) && body.includes(MOVE)) {
+                return body;
+            } else {
+                return null; // 明确返回 null 表示无法构建合格 creep
+            }
         };
 
         const spawnRole = (role) => {
