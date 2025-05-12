@@ -247,31 +247,39 @@ var spawnManager$1 = {
         room.energyAvailable;
 
         const generateBody = (role) => {
-            const maxCost = room.energyCapacityAvailable; // 当前房间可用能量上限
+            const maxCost = room.energyCapacityAvailable;
+            const currentEnergy = room.energyAvailable;
             let body = [];
 
             switch (role) {
                 case 'harvester':
-                    // 早期采集需要快速补充能量，WORK*2 + MOVE*1 (250能量)
-                    body = [WORK, WORK, CARRY, MOVE];
-                    if (maxCost >= 350) body = [WORK, WORK, WORK, CARRY, MOVE, MOVE]; // 更高配置
+                    if (currentEnergy < 300) {
+                        // 🆘 紧急配置，确保能造出基础 harvester
+                        body = [WORK, CARRY, MOVE]; // 200 能量
+                    } else if (maxCost >= 350) {
+                        body = [WORK, WORK, WORK, CARRY, MOVE, MOVE];
+                    } else {
+                        body = [WORK, WORK, CARRY, MOVE];
+                    }
                     break;
                 case 'builder':
                 case 'upgrader':
-                    // 平衡搬运与工作能力
-                    body = [WORK, CARRY, MOVE, MOVE]; // 200能量
-                    if (maxCost >= 400) body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
+                    if (currentEnergy < 300) {
+                        body = [WORK, CARRY, MOVE];
+                    } else {
+                        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
+                    }
                     break;
                 case 'repairer':
-                    // 修理需要更多搬运能力
-                    body = [CARRY, CARRY, MOVE, WORK]; // 250能量
+                    body = [CARRY, CARRY, MOVE, WORK];
                     break;
             }
 
-            // 确保不超过能量上限
-            while (body.reduce((cost, part) => cost + BODYPART_COST[part], 0) > maxCost) {
+            // 确保不超出 energyAvailable（不是 energyCapacity）
+            while (body.reduce((cost, part) => cost + BODYPART_COST[part], 0) > currentEnergy) {
                 body.pop();
             }
+
             return body;
         };
 
@@ -282,7 +290,7 @@ var spawnManager$1 = {
             if (result === OK) {
                 console.log(`Spawning new ${role}: ${newName}`);
             } else {
-                console.log(`Failed to spawn ${role}: ${result}`);
+                console.log(`Failed to spawn ${role}: ${result}, energy: ${room.energyAvailable}, body: ${JSON.stringify(body)}`);
             }
         };
 
