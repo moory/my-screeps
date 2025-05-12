@@ -6,34 +6,42 @@ module.exports = {
             delete creep.memory.cachedPath;
         }
 
-        // 绑定能量源 + 路径缓存
+        // ✅ 尝试重新绑定 source
         if (!creep.memory.sourceId) {
-            const source = creep.pos.findClosestByPath(FIND_SOURCES, {
-                filter: s => s.energy > 0
-            });
-
+            const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
             if (source) {
                 creep.memory.sourceId = source.id;
-                // 缓存初始路径
                 const path = creep.pos.findPathTo(source, {
                     serialize: true,
                     ignoreCreeps: true
                 });
                 creep.memory.cachedPath = path;
+            } else {
+                // ✅ 如果找不到能量源，moveTo 控制器附近等待
+                if (creep.room.controller) {
+                    creep.moveTo(creep.room.controller);
+                }
+                return;
             }
         }
 
         const source = Game.getObjectById(creep.memory.sourceId);
 
         if (creep.store.getFreeCapacity() > 0) {
-            // 优先采集已绑定的能量源
             if (source) {
-                if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+                const harvestResult = creep.harvest(source);
+                if (harvestResult === ERR_NOT_IN_RANGE) {
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
-                        creep.moveByPath(creep.memory.cachedPath);
-                        // 更新路径缓存（应对地形变化）
-                        if (creep.pos.isNearTo(source)) {
+                        const moveResult = creep.moveByPath(creep.memory.cachedPath);
+                        // ✅ fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
+                        if (moveResult < 0) {
+                            creep.moveTo(source, {
+                                visualizePathStyle: { stroke: '#ffaa00' },
+                                reusePath: 3
+                            });
+                            delete creep.memory.cachedPath;
+                        } else if (creep.pos.isNearTo(source)) {
                             creep.memory.cachedPath = creep.pos.findPathTo(source, {
                                 serialize: true,
                                 ignoreCreeps: true
@@ -42,7 +50,7 @@ module.exports = {
                     } else {
                         creep.moveTo(source, {
                             visualizePathStyle: { stroke: '#ffaa00' },
-                            reusePath: 5  // 优化路径重用
+                            reusePath: 3
                         });
                     }
                 }
@@ -50,39 +58,38 @@ module.exports = {
         } else {
             // 能量运输逻辑
             let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                filter: s => (s.structureType === STRUCTURE_EXTENSION ||
-                        s.structureType === STRUCTURE_SPAWN ||
-                        s.structureType === STRUCTURE_TOWER) &&
+                filter: s =>
+                    (s.structureType === STRUCTURE_EXTENSION ||
+                     s.structureType === STRUCTURE_SPAWN ||
+                     s.structureType === STRUCTURE_TOWER) &&
                     s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
 
-            // 如果常规目标已满，尝试存入存储设施
             if (!target) {
                 target = creep.room.storage ||
                     creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                        filter: s => s.structureType === STRUCTURE_CONTAINER &&
+                        filter: s =>
+                            s.structureType === STRUCTURE_CONTAINER &&
                             s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
                     });
             }
 
-            // 最终备用方案：升级控制器
-            if (!target) {
+            if (!target && creep.room.controller) {
                 target = creep.room.controller;
             }
 
             if (target) {
-                const transferResult = target.structureType === STRUCTURE_CONTROLLER ?
-                    creep.upgradeController(target) :
-                    creep.transfer(target, RESOURCE_ENERGY);
+                const result = (target.structureType === STRUCTURE_CONTROLLER)
+                    ? creep.upgradeController(target)
+                    : creep.transfer(target, RESOURCE_ENERGY);
 
-                if (transferResult === ERR_NOT_IN_RANGE) {
+                if (result === ERR_NOT_IN_RANGE) {
                     creep.moveTo(target, {
                         visualizePathStyle: { stroke: '#ffffff' },
-                        reusePath: 3  // 优化路径重用
+                        reusePath: 3
                     });
                 }
 
-                // 清空路径缓存（返回时可能需要新路径）
                 if (!creep.pos.inRangeTo(target, 3)) {
                     delete creep.memory.cachedPath;
                 }
