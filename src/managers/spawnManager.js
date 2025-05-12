@@ -1,87 +1,118 @@
 module.exports = {
     run(room) {
-        const harvesters = _.filter(Game.creeps, (creep) => creep.memory.role === 'harvester' && creep.room.name === room.name);
-        const builders = _.filter(Game.creeps, (creep) => creep.memory.role === 'builder' && creep.room.name === room.name);
-        const upgraders = _.filter(Game.creeps, (creep) => creep.memory.role === 'upgrader' && creep.room.name === room.name);
-        const repairers = _.filter(Game.creeps, (creep) => creep.memory.role === 'repairer' && creep.room.name === room.name); // ✅ 新增统计
+        const getCreepsByRole = (role) =>
+            room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === role });
+
+        const harvesters = getCreepsByRole('harvester');
+        const builders = getCreepsByRole('builder');
+        const upgraders = getCreepsByRole('upgrader');
+        const repairers = getCreepsByRole('repairer');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
-        if (!spawn || spawn.spawning) {
-            return;
-        }
+        if (!spawn || spawn.spawning) return;
 
-        const energyAvailable = room.energyAvailable;
+        const baseHarvesters = room.controller.level < 3 ? 3 : 2;
+        const desiredBuilders = room.find(FIND_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
+        const desiredRepairers = room.find(FIND_STRUCTURES, {
+            filter: s => s.hits < s.hitsMax * 0.8
+        }).length > 0 ? 2 : 1;
 
-        const generateBody = (role) => {
-            const maxCost = room.energyCapacityAvailable;
-            const currentEnergy = room.energyAvailable;
-            let body = [];
-
-            switch (role) {
-                case 'harvester':
-                    if (currentEnergy < 300) {
-                        // 🆘 紧急配置，确保能造出基础 harvester
-                        body = [WORK, CARRY, MOVE]; // 200 能量
-                    } else if (maxCost >= 350) {
-                        body = [WORK, WORK, WORK, CARRY, MOVE, MOVE];
-                    } else {
-                        body = [WORK, WORK, CARRY, MOVE];
-                    }
-                    break;
-                case 'builder':
-                case 'upgrader':
-                    if (currentEnergy < 300) {
-                        body = [WORK, CARRY, MOVE];
-                    } else {
-                        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
-                    }
-                    break;
-                case 'repairer':
-                    body = [CARRY, CARRY, MOVE, WORK];
-                    break;
+        const bodyTemplates = {
+            harvester: {
+                base: [WORK, CARRY, MOVE],
+                pattern: [WORK, WORK, MOVE],
+                maxPatternRepeats: 4
+            },
+            worker: {
+                base: [WORK, CARRY, MOVE],
+                pattern: [WORK, CARRY, MOVE],
+                maxPatternRepeats: 4
+            },
+            repairer: {
+                base: [WORK, CARRY, MOVE],
+                pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: 3
             }
-
-            // 确保不超出 energyAvailable（不是 energyCapacity）
-            while (body.reduce((cost, part) => cost + BODYPART_COST[part], 0) > currentEnergy) {
-                body.pop();
-            }
-
-            return body;
         };
 
-        const spawnCreepWithRole = (role) => {
-            const body = generateBody(role);
-            const newName = role.charAt(0).toUpperCase() + role.slice(1) + Game.time;
-            const result = spawn.spawnCreep(body, newName, { memory: { role } });
+        const generateOptimalBody = (role) => {
+            const energyAvailable = room.energyAvailable;
+            const energyCapacity = room.energyCapacityAvailable;
+
+            const template = bodyTemplates[role === 'harvester' ? 'harvester'
+                : role === 'repairer' ? 'repairer'
+                    : 'worker'];
+
+            let body = [...template.base];
+            const patternCost = _.sum(template.pattern.map(p => BODYPART_COST[p]));
+            const baseCost = _.sum(body.map(p => BODYPART_COST[p]));
+
+            const maxRepeats = Math.min(
+                Math.floor((energyCapacity - baseCost) / patternCost),
+                template.maxPatternRepeats
+            );
+
+            for (let i = 0; i < maxRepeats; i++) {
+                body.push(...template.pattern);
+            }
+
+            // 调整超预算部分：优先移除 WORK，其次 CARRY，最后 MOVE
+            while (_.sum(body.map(p => BODYPART_COST[p])) > energyAvailable) {
+                const idx =
+                    body.lastIndexOf(WORK) >= 0 ? body.lastIndexOf(WORK) :
+                        body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
+                            body.lastIndexOf(MOVE);
+                if (idx !== -1) body.splice(idx, 1);
+                else break;
+            }
+
+            return body.length > 0 ? body : template.base;
+        };
+
+        const spawnRole = (role) => {
+            const body = generateOptimalBody(role);
+            const result = spawn.spawnCreep(
+                body,
+                `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
+                { memory: { role } }
+            );
             if (result === OK) {
-                console.log(`Spawning new ${role}: ${newName}`);
-            } else {
-                console.log(`Failed to spawn ${role}: ${result}, energy: ${room.energyAvailable}, body: ${JSON.stringify(body)}`);
+                console.log(`🛠️ Spawning ${role}: ${JSON.stringify(body)}`);
+                return true;
             }
+            console.log(`⚠️ Failed to spawn ${role}: ${result}`);
+            return false;
         };
 
+        // 应急逻辑：最低成本 fallback
         if (harvesters.length < 1) {
-            // 应急逻辑
-            const body = [WORK, CARRY, MOVE];
-            const name = 'HarvesterEmergency' + Game.time;
-            const result = spawn.spawnCreep(body, name, { memory: { role: 'harvester' } });
+            const energy = room.energyAvailable;
+            const emergencyBody = energy >= 350
+                ? [WORK, WORK, CARRY, MOVE, MOVE]
+                : [WORK, CARRY, MOVE];
+
+            const result = spawn.spawnCreep(
+                emergencyBody,
+                `EmergencyHarvester_${Game.time}`,
+                { memory: { role: 'harvester', emergency: true } }
+            );
             if (result === OK) {
-                console.log(`⚠️ Emergency harvester spawned: ${name}`);
+                console.log(`🚨 Emergency harvester spawned!`);
             } else {
-                console.log(`❌ Failed to spawn emergency harvester: ${result}`);
+                console.log(`❌ Emergency spawn failed: ${result}`);
             }
             return;
         }
 
-        // ✅ 增加 repairer 生成优先级控制
-        if (harvesters.length < 2) {
-            spawnCreepWithRole('harvester');
-        } else if (upgraders.length < 2) {
-            spawnCreepWithRole('upgrader');
-        } else if (builders.length < 2) {
-            spawnCreepWithRole('builder');
-        } else if (repairers.length < 1) {
-            spawnCreepWithRole('repairer');
+        const spawnPriority = [
+            { condition: harvesters.length < baseHarvesters, role: 'harvester' },
+            { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: builders.length < desiredBuilders, role: 'builder' },
+            { condition: upgraders.length < 2, role: 'upgrader' }
+        ];
+
+        for (const { condition, role } of spawnPriority) {
+            if (condition && spawnRole(role)) break;
         }
     }
 };
