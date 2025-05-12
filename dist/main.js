@@ -294,6 +294,19 @@ var spawnManager$1 = {
             }
         };
 
+        if (harvesters.length < 1) {
+            // 应急逻辑
+            const body = [WORK, CARRY, MOVE];
+            const name = 'HarvesterEmergency' + Game.time;
+            const result = spawn.spawnCreep(body, name, { memory: { role: 'harvester' } });
+            if (result === OK) {
+                console.log(`⚠️ Emergency harvester spawned: ${name}`);
+            } else {
+                console.log(`❌ Failed to spawn emergency harvester: ${result}`);
+            }
+            return;
+        }
+
         // ✅ 增加 repairer 生成优先级控制
         if (harvesters.length < 2) {
             spawnCreepWithRole('harvester');
