@@ -290,28 +290,29 @@ var spawnManager$1 = {
                 body.push(...template.pattern);
             }
 
-            // 移除多余部件，直到符合当前可用能量（同时保底功能）
+            // 调整：至少保留一个完整的基本功能（WORK + CARRY + MOVE）
             while (_.sum(body.map(p => BODYPART_COST[p])) > energyAvailable) {
+                if (body.length <= 3) break;
                 const idx =
                     body.lastIndexOf(WORK) >= 0 ? body.lastIndexOf(WORK) :
-                        body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
-                            body.lastIndexOf(MOVE);
-
-                if (body.length <= 3) break; // 最少保留 3 个核心组件
+                    body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
+                    body.lastIndexOf(MOVE);
                 if (idx !== -1) body.splice(idx, 1);
                 else break;
             }
 
             const finalCost = _.sum(body.map(p => BODYPART_COST[p]));
-            if (finalCost <= energyAvailable && body.includes(WORK) && body.includes(CARRY) && body.includes(MOVE)) {
-                return body;
-            } else {
-                return null; // 明确返回 null 表示无法构建合格 creep
-            }
+            const hasBasicParts = body.includes(WORK) && body.includes(CARRY) && body.includes(MOVE);
+
+            return (finalCost <= energyAvailable && hasBasicParts) ? body : null;
         };
 
         const spawnRole = (role) => {
             const body = generateOptimalBody(role);
+            if (!body) {
+                console.log(`⚠️ Cannot generate valid body for role: ${role}`);
+                return false;
+            }
             const result = spawn.spawnCreep(
                 body,
                 `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
@@ -325,22 +326,28 @@ var spawnManager$1 = {
             return false;
         };
 
-        // 应急逻辑：最低成本 fallback
+        // 应急逻辑：最低成本 fallback（只在没有 harvester 时触发）
         if (harvesters.length < 1) {
             const energy = room.energyAvailable;
             const emergencyBody = energy >= 350
                 ? [WORK, WORK, CARRY, MOVE, MOVE]
-                : [WORK, CARRY, MOVE];
+                : energy >= 200
+                    ? [WORK, CARRY, MOVE]
+                    : null;
 
-            const result = spawn.spawnCreep(
-                emergencyBody,
-                `EmergencyHarvester_${Game.time}`,
-                { memory: { role: 'harvester', emergency: true } }
-            );
-            if (result === OK) {
-                console.log(`🚨 Emergency harvester spawned!`);
+            if (emergencyBody) {
+                const result = spawn.spawnCreep(
+                    emergencyBody,
+                    `EmergencyHarvester_${Game.time}`,
+                    { memory: { role: 'harvester', emergency: true } }
+                );
+                if (result === OK) {
+                    console.log(`🚨 Emergency harvester spawned!`);
+                } else {
+                    console.log(`❌ Emergency spawn failed: ${result}`);
+                }
             } else {
-                console.log(`❌ Emergency spawn failed: ${result}`);
+                console.log(`🚫 Not enough energy (${energy}) to spawn emergency harvester.`);
             }
             return;
         }
