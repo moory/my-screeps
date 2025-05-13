@@ -5,6 +5,11 @@ module.exports = {
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
         }
+        
+        // 检查容器是否还存在，如果不存在则清除容器ID
+        if (creep.memory.containerId && !Game.getObjectById(creep.memory.containerId)) {
+            delete creep.memory.containerId;
+        }
 
         // 尝试绑定 source
         if (!creep.memory.sourceId) {
@@ -75,7 +80,8 @@ module.exports = {
         if (container) {
             if (!creep.pos.isEqualTo(container.pos)) {
                 creep.moveTo(container, {
-                    visualizePathStyle: { stroke: '#ffaa00' }
+                    visualizePathStyle: { stroke: '#ffaa00' },
+                    reusePath: 5
                 });
             } else {
                 // 站在容器上挖矿，能量会自动掉入容器
@@ -88,6 +94,16 @@ module.exports = {
             if (source) {
                 const harvestResult = creep.harvest(source);
                 if (harvestResult === ERR_NOT_IN_RANGE) {
+                    // 定期重新计算路径，避免卡住
+                    if (!creep.memory.pathUpdateTime || Game.time - creep.memory.pathUpdateTime > 20) {
+                        const path = creep.pos.findPathTo(source, {
+                            serialize: true,
+                            ignoreCreeps: true
+                        });
+                        creep.memory.cachedPath = path;
+                        creep.memory.pathUpdateTime = Game.time;
+                    }
+                    
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
@@ -97,6 +113,7 @@ module.exports = {
                                 visualizePathStyle: { stroke: '#ffaa00' },
                                 reusePath: 3
                             });
+                            // 如果移动失败，重新计算路径
                             delete creep.memory.cachedPath;
                         }
                     } else {
@@ -122,9 +139,47 @@ module.exports = {
                                 visualizePathStyle: { stroke: '#ffffff' }
                             });
                         }
+                    } else {
+                        // 如果找不到容器，尝试建造一个容器
+                        const constructionSites = creep.pos.findInRange(FIND_CONSTRUCTION_SITES, 3, {
+                            filter: site => site.structureType === STRUCTURE_CONTAINER
+                        });
+                        
+                        if (constructionSites.length > 0) {
+                            if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) {
+                                creep.moveTo(constructionSites[0]);
+                            }
+                        } else if (creep.pos.isNearTo(source)) {
+                            // 在能量源旁边创建一个容器建筑工地
+                            creep.room.createConstructionSite(creep.pos, STRUCTURE_CONTAINER);
+                        } else {
+                            // 如果实在没地方放，就丢弃一些能量以继续挖矿
+                            creep.drop(RESOURCE_ENERGY, creep.store.getUsedCapacity(RESOURCE_ENERGY) / 2);
+                        }
                     }
                 }
             }
+        }
+        
+        // 添加卡住检测
+        if (creep.memory.lastPos && 
+            creep.memory.lastPos.x === creep.pos.x && 
+            creep.memory.lastPos.y === creep.pos.y && 
+            creep.memory.stuckCount) {
+            
+            creep.memory.stuckCount++;
+            
+            // 如果卡住超过10个tick，重新计算路径
+            if (creep.memory.stuckCount > 10) {
+                delete creep.memory.cachedPath;
+                creep.memory.stuckCount = 0;
+                // 随机移动一下尝试解除卡住状态
+                const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
+                creep.move(directions[Math.floor(Math.random() * directions.length)]);
+            }
+        } else {
+            creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
+            creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
         }
     }
 };
