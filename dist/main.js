@@ -186,10 +186,142 @@ var roleRepairer$1 = {
 
 var role_repairer = roleRepairer$1;
 
+var role_miner = {
+    run(creep) {
+        // 自动清理无效内存
+        if (!creep.memory.sourceId || !Game.getObjectById(creep.memory.sourceId)) {
+            delete creep.memory.sourceId;
+            delete creep.memory.cachedPath;
+        }
+
+        // 尝试绑定 source
+        if (!creep.memory.sourceId) {
+            const sources = creep.room.find(FIND_SOURCES);
+            // 找到当前分配矿工最少的能量源
+            const sourceAssignments = {};
+            
+            // 初始化每个能量源的矿工数量为0
+            for (const source of sources) {
+                sourceAssignments[source.id] = 0;
+            }
+            
+            // 统计每个能量源的矿工数量
+            for (const name in Game.creeps) {
+                const otherCreep = Game.creeps[name];
+                if (otherCreep.memory.role === 'miner' && otherCreep.memory.sourceId) {
+                    sourceAssignments[otherCreep.memory.sourceId] = 
+                        (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
+                }
+            }
+            
+            // 找到分配矿工最少的能量源
+            let minAssignedSource = null;
+            let minAssignedCount = Infinity;
+            
+            for (const sourceId in sourceAssignments) {
+                if (sourceAssignments[sourceId] < minAssignedCount) {
+                    minAssignedCount = sourceAssignments[sourceId];
+                    minAssignedSource = sourceId;
+                }
+            }
+            
+            if (minAssignedSource) {
+                creep.memory.sourceId = minAssignedSource;
+                const source = Game.getObjectById(minAssignedSource);
+                const path = creep.pos.findPathTo(source, {
+                    serialize: true,
+                    ignoreCreeps: true
+                });
+                creep.memory.cachedPath = path;
+                console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}`);
+            } else {
+                // 如果找不到能量源，移动到控制器附近等待
+                if (creep.room.controller) {
+                    creep.moveTo(creep.room.controller);
+                }
+                return;
+            }
+        }
+
+        const source = Game.getObjectById(creep.memory.sourceId);
+        
+        // 寻找附近的容器
+        if (!creep.memory.containerId) {
+            const containers = creep.pos.findInRange(FIND_STRUCTURES, 2, {
+                filter: s => s.structureType === STRUCTURE_CONTAINER
+            });
+            
+            // 如果附近有容器，记住它
+            if (containers.length > 0) {
+                creep.memory.containerId = containers[0].id;
+            }
+        }
+        
+        const container = creep.memory.containerId ? Game.getObjectById(creep.memory.containerId) : null;
+        
+        // 如果有容器，站在容器上挖矿
+        if (container) {
+            if (!creep.pos.isEqualTo(container.pos)) {
+                creep.moveTo(container, {
+                    visualizePathStyle: { stroke: '#ffaa00' }
+                });
+            } else {
+                // 站在容器上挖矿，能量会自动掉入容器
+                if (source) {
+                    creep.harvest(source);
+                }
+            }
+        } else {
+            // 没有容器，正常挖矿
+            if (source) {
+                const harvestResult = creep.harvest(source);
+                if (harvestResult === ERR_NOT_IN_RANGE) {
+                    // 使用带缓存的移动
+                    if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
+                        const moveResult = creep.moveByPath(creep.memory.cachedPath);
+                        // fallback：如果 moveByPath 失败，则直接 moveTo
+                        if (moveResult < 0) {
+                            creep.moveTo(source, {
+                                visualizePathStyle: { stroke: '#ffaa00' },
+                                reusePath: 3
+                            });
+                            delete creep.memory.cachedPath;
+                        }
+                    } else {
+                        creep.moveTo(source, {
+                            visualizePathStyle: { stroke: '#ffaa00' },
+                            reusePath: 3
+                        });
+                    }
+                }
+                
+                // 如果背包满了，尝试将能量放入附近的容器或存储
+                if (creep.store.getFreeCapacity() === 0) {
+                    const container = creep.pos.findClosestByRange(FIND_STRUCTURES, {
+                        filter: s => 
+                            (s.structureType === STRUCTURE_CONTAINER || 
+                             s.structureType === STRUCTURE_STORAGE) &&
+                            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                    });
+                    
+                    if (container) {
+                        if (creep.transfer(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                            creep.moveTo(container, {
+                                visualizePathStyle: { stroke: '#ffffff' }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
+
 const roleHarvester = role_harvester;
 const roleBuilder = role_builder;
 const roleUpgrader = role_upgrader;
 const roleRepairer = role_repairer;
+const roleMiner = role_miner;
 
 var creepManager$1 = {
     run(room) {
@@ -210,6 +342,9 @@ var creepManager$1 = {
                 case 'repairer':
                     roleRepairer.run(creep);
                     break;
+                case 'miner':
+                    roleMiner.run(creep);
+                    break;
             }
         }
     },
@@ -222,9 +357,39 @@ var structureManager$1 = {
     });
 
     for (const tower of towers) {
-      const target = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-      if (target) {
-        tower.attack(target);
+      // 1. 首先攻击敌人
+      const hostileCreep = tower.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+      if (hostileCreep) {
+        tower.attack(hostileCreep);
+        continue; // 如果有敌人，优先攻击，不执行其他操作
+      }
+
+      // 2. 治疗受伤的友方 creep
+      const injuredCreep = tower.pos.findClosestByRange(FIND_MY_CREEPS, {
+        filter: c => c.hits < c.hitsMax
+      });
+      if (injuredCreep) {
+        tower.heal(injuredCreep);
+        continue; // 如果有受伤的 creep，优先治疗，不执行修复
+      }
+
+      // 3. 修复重要建筑
+      // 只有当能量超过 50% 时才修复建筑，保留能量应对攻击
+      if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
+        // 优先修复重要建筑：容器、道路、防御墙和城墙
+        const criticalStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
+          filter: s => 
+            ((s.structureType === STRUCTURE_CONTAINER || 
+              s.structureType === STRUCTURE_ROAD) && 
+             s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
+            ((s.structureType === STRUCTURE_RAMPART || 
+              s.structureType === STRUCTURE_WALL) && 
+             s.hits < 10000) // 防御墙和城墙低于 10000 时修复
+        });
+        
+        if (criticalStructure) {
+          tower.repair(criticalStructure);
+        }
       }
     }
   },
@@ -234,7 +399,30 @@ var defenseManager$1 = {
   run(room) {
     const hostiles = room.find(FIND_HOSTILE_CREEPS);
     if (hostiles.length > 0) {
-      Game.notify(`Hostiles detected in room ${room.name}`);
+      // 发送通知
+      Game.notify(`警告：检测到 ${hostiles.length} 个敌对 creep 在房间 ${room.name}`);
+      
+      // 激活安全模式（如果可用且敌人数量超过阈值）
+      if (hostiles.length >= 3 && room.controller && 
+          room.controller.my && !room.controller.safeMode && 
+          room.controller.safeModeAvailable > 0) {
+        // 只有当我们的 creep 数量少于敌人的两倍时才激活安全模式
+        const myCreeps = room.find(FIND_MY_CREEPS);
+        if (myCreeps.length < hostiles.length * 2) {
+          room.controller.activateSafeMode();
+          Game.notify(`房间 ${room.name} 已激活安全模式以应对入侵！`);
+        }
+      }
+      
+      // 在有敌人时，将所有 creep 召集到出生点附近
+      if (room.memory.underAttack !== true) {
+        room.memory.underAttack = true;
+        console.log(`⚠️ 房间 ${room.name} 正在遭受攻击！`);
+      }
+    } else if (room.memory.underAttack) {
+      // 解除警报
+      delete room.memory.underAttack;
+      console.log(`✅ 房间 ${room.name} 的威胁已解除`);
     }
   },
 };
@@ -248,6 +436,7 @@ var spawnManager$1 = {
         const builders = getCreepsByRole('builder');
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
+        const miners = getCreepsByRole('miner');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -257,6 +446,8 @@ var spawnManager$1 = {
         const desiredRepairers = room.find(FIND_STRUCTURES, {
             filter: s => s.hits < s.hitsMax * 0.8
         }).length > 0 ? 2 : 1;
+        // 每个能量源分配一个矿工
+        const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
 
         const bodyTemplates = {
             harvester: {
@@ -272,6 +463,11 @@ var spawnManager$1 = {
             repairer: {
                 base: [WORK, CARRY, MOVE],
                 pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: 3
+            },
+            miner: {
+                base: [WORK, WORK, MOVE],
+                pattern: [WORK, WORK, MOVE],
                 maxPatternRepeats: 3
             }
         };
@@ -361,6 +557,7 @@ var spawnManager$1 = {
 
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
+            { condition: miners.length < desiredMiners, role: 'miner' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: upgraders.length < 2, role: 'upgrader' }

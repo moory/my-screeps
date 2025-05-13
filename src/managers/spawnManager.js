@@ -7,6 +7,7 @@ module.exports = {
         const builders = getCreepsByRole('builder');
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
+        const miners = getCreepsByRole('miner');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -16,6 +17,8 @@ module.exports = {
         const desiredRepairers = room.find(FIND_STRUCTURES, {
             filter: s => s.hits < s.hitsMax * 0.8
         }).length > 0 ? 2 : 1;
+        // 每个能量源分配一个矿工
+        const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
 
         const bodyTemplates = {
             harvester: {
@@ -31,6 +34,11 @@ module.exports = {
             repairer: {
                 base: [WORK, CARRY, MOVE],
                 pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: 3
+            },
+            miner: {
+                base: [WORK, WORK, MOVE],
+                pattern: [WORK, WORK, MOVE],
                 maxPatternRepeats: 3
             }
         };
@@ -120,6 +128,7 @@ module.exports = {
 
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
+            { condition: miners.length < desiredMiners, role: 'miner' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: upgraders.length < 2, role: 'upgrader' }
