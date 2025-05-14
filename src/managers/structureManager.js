@@ -26,12 +26,14 @@ module.exports = {
 
     for (const tower of towers) {
       // 1. 攻击敌人（优先目标）
-      const hostilesInRange = tower.pos.findInRange(FIND_HOSTILE_CREEPS, TOWER_RANGE);
+      const hostilesInRange = tower.pos.findInRange(FIND_HOSTILE_CREEPS, 25);
       if (hostilesInRange.length > 0) {
-        // 新增墙体穿透检测逻辑
-        const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => 
-          !c.pos.lookFor(LOOK_STRUCTURES).some(s => s.structureType === STRUCTURE_WALL)
-        ));
+        // 改进墙体穿透检测逻辑
+        const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => {
+          // 只检查是否有墙，而不是任何结构
+          const structures = c.pos.lookFor(LOOK_STRUCTURES);
+          return !structures.some(s => s.structureType === STRUCTURE_WALL);
+        }));
         
         if (attackTarget) {
           tower.attack(attackTarget);
