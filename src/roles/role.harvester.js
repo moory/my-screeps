@@ -28,7 +28,20 @@ module.exports = {
         const source = Game.getObjectById(creep.memory.sourceId);
 
         if (creep.store.getFreeCapacity() > 0) {
-            if (source) {
+            // 首先尝试从Container获取能量
+            const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                filter: s => s.structureType === STRUCTURE_CONTAINER &&
+                    s.store[RESOURCE_ENERGY] > 0
+            });
+
+            if (container) {
+                if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                    creep.moveTo(container, {
+                        visualizePathStyle: { stroke: '#ffaa00' },
+                        reusePath: 3
+                    });
+                }
+            } else if (source) {
                 const harvestResult = creep.harvest(source);
                 if (harvestResult === ERR_NOT_IN_RANGE) {
                     // 使用带缓存的移动
@@ -60,8 +73,8 @@ module.exports = {
             let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
                 filter: s =>
                     (s.structureType === STRUCTURE_EXTENSION ||
-                     s.structureType === STRUCTURE_SPAWN ||
-                     s.structureType === STRUCTURE_TOWER) &&
+                        s.structureType === STRUCTURE_SPAWN ||
+                        s.structureType === STRUCTURE_TOWER) &&
                     s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
 
