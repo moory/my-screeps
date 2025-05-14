@@ -41,11 +41,11 @@ module.exports = {
         }
       }
       
-      // 其次从容器或存储中获取能量
+      // 优先从存储设施获取能量（新增Storage优先级）
       const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
         filter: structure => {
-          return (structure.structureType === STRUCTURE_CONTAINER || 
-                  structure.structureType === STRUCTURE_STORAGE) && 
+          return (structure.structureType === STRUCTURE_STORAGE || 
+                  structure.structureType === STRUCTURE_CONTAINER) && 
                   structure.store[RESOURCE_ENERGY] > creep.store.getFreeCapacity();
         }
       });

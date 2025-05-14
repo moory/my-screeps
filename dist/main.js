@@ -85,7 +85,7 @@ var role_harvester = {
             });
 
             if (!target) {
-                target = creep.room.storage ||
+                target = creep.room.storage ||  // 优先使用Storage
                     creep.pos.findClosestByPath(FIND_STRUCTURES, {
                         filter: s =>
                             s.structureType === STRUCTURE_CONTAINER &&
@@ -160,11 +160,11 @@ var role_builder = {
         }
       }
       
-      // 其次从容器或存储中获取能量
+      // 优先从存储设施获取能量（新增Storage优先级）
       const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
         filter: structure => {
-          return (structure.structureType === STRUCTURE_CONTAINER || 
-                  structure.structureType === STRUCTURE_STORAGE) && 
+          return (structure.structureType === STRUCTURE_STORAGE || 
+                  structure.structureType === STRUCTURE_CONTAINER) && 
                   structure.store[RESOURCE_ENERGY] > creep.store.getFreeCapacity();
         }
       });

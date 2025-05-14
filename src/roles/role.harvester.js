@@ -79,7 +79,7 @@ module.exports = {
             });
 
             if (!target) {
-                target = creep.room.storage ||
+                target = creep.room.storage ||  // 优先使用Storage
                     creep.pos.findClosestByPath(FIND_STRUCTURES, {
                         filter: s =>
                             s.structureType === STRUCTURE_CONTAINER &&
