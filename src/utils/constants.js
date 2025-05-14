@@ -76,8 +76,6 @@ const BEHAVIOR = {
 
 // 房间管理相关常量
 const ROOM_MANAGEMENT = {
-  // 安全模式激活阈值（敌人数量）
-  SAFE_MODE_THRESHOLD: 3,
   // 塔能量保留比例（用于防御）
   TOWER_ENERGY_RESERVE: 0.5
 };

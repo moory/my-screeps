@@ -1,6 +1,11 @@
 # my-screeps
-## RCL等级
-目前RCL=4
+## 等级
+- GCL=3
+- RCL=4
+
+## 房间控制
+- 房间名：W27N44
+- 房间等级：4
 
 ## 建筑概况
 - Controller x1
