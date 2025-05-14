@@ -32,7 +32,7 @@ module.exports = {
              s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
             ((s.structureType === STRUCTURE_RAMPART || 
               s.structureType === STRUCTURE_WALL) && 
-             s.hits < 10000) // 防御墙和城墙低于 10000 时修复
+             s.hits < 100000) // 防御墙和城墙低于 100000 时修复
         });
         
         if (criticalStructure) {
