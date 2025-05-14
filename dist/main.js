@@ -467,8 +467,11 @@ var defenseManager$1 = {
   run(room) {
     const hostiles = room.find(FIND_HOSTILE_CREEPS);
     if (hostiles.length > 0) {
-      // 发送通知
-      Game.notify(`警告：检测到 ${hostiles.length} 个敌对 creep 在房间 ${room.name}`);
+       // 提取敌人用户名（去重）
+       const hostileUsers = [...new Set(hostiles.map(c => c.owner.username))];
+
+       // 发送通知，包括敌人数量和用户名
+       Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`); 
       
       // 激活安全模式（如果可用且敌人数量超过阈值）
       if (hostiles.length >= 3 && room.controller && 
