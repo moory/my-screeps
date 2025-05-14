@@ -614,6 +614,18 @@ var structureManager$1 = {
 
     for (const tower of towers) {
       // 1. 攻击敌人（优先目标）
+      const hostilesInRange = tower.pos.findInRange(FIND_HOSTILE_CREEPS, TOWER_RANGE);
+      if (hostilesInRange.length > 0) {
+        // 新增墙体穿透检测逻辑
+        const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => 
+          !c.pos.lookFor(LOOK_STRUCTURES).some(s => s.structureType === STRUCTURE_WALL)
+        ));
+        
+        if (attackTarget) {
+          tower.attack(attackTarget);
+          continue;
+        }
+      }
       if (primaryTarget) {
         tower.attack(primaryTarget);
         continue; // 如果有主要目标，优先攻击，不执行其他操作
