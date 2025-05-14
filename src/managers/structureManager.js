@@ -51,7 +51,7 @@ module.exports = {
              s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
             ((s.structureType === STRUCTURE_RAMPART ||
               s.structureType === STRUCTURE_WALL) &&
-             s.hits < 100000) // 防御墙和城墙低于 100000 时修复 (这个值可以根据您的基地情况调整)
+             s.hits < 200000) // 防御墙和城墙低于 200000 时修复 (这个值可以根据您的基地情况调整)
         });
 
         if (criticalStructure) {
