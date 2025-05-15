@@ -119,6 +119,18 @@ module.exports = {
         continue;
       }
       
+      // 跳过已标记为不适合的房间
+      if (Memory.unsuitable_rooms && Memory.unsuitable_rooms[roomName]) {
+        // 可以选择性地添加过期逻辑，例如一段时间后重新考虑
+        // const expirationTime = 20000; // 约10小时游戏时间
+        // if (Game.time - Memory.unsuitable_rooms[roomName].timestamp > expirationTime) {
+        //   delete Memory.unsuitable_rooms[roomName];
+        // } else {
+        //   continue;
+        // }
+        continue;
+      }
+      
       // 如果我们已经可以看到这个房间，检查它是否已经被占领
       if (Game.rooms[roomName] && 
           Game.rooms[roomName].controller && 
@@ -300,6 +312,17 @@ module.exports = {
       // 检查房间是否已被占领
       if (room.controller && room.controller.owner && !room.controller.my) {
         console.log(`房间 ${expansion.targetRoom} 已被其他玩家占领，取消扩张`);
+        
+        // 将房间标记为不适合扩张
+        if (!Memory.unsuitable_rooms) {
+          Memory.unsuitable_rooms = {};
+        }
+        Memory.unsuitable_rooms[expansion.targetRoom] = {
+          reason: 'occupied',
+          owner: room.controller.owner.username,
+          timestamp: Game.time
+        };
+        
         delete Memory.expansion;
         return;
       }
