@@ -35,7 +35,7 @@ module.exports.loop = function () {
       runNormalMode();
     }
     
-    // 通用逻辑
+    // 在通用逻辑部分调用扩张管理器
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       roomManager.run(room, currentMode);
@@ -45,6 +45,9 @@ module.exports.loop = function () {
         creepManager.run(room);
       }
     }
+    
+    // 无论当前模式如何，都调用扩张管理器
+    expansionManager.run(Game);
     
     cpuManager.run();
     

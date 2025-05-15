@@ -8,7 +8,40 @@ module.exports = {
    * @param {Game} game - 游戏对象
    */
   run(game) {
-    // 每100个tick检查一次扩张机会
+    // 检查是否有正在进行的扩张任务
+    if (Memory.expansion) {
+      // 如果有扩张任务，处理它
+      this.processExpansion();
+      return;
+    }
+    
+    // 检查是否有房间处于扩张模式
+    const roomsInExpansionMode = Object.values(Game.rooms).filter(room => 
+      room.controller && room.controller.my && room.memory.mode === 'expansion'
+    );
+    
+    if (roomsInExpansionMode.length > 0) {
+      console.log(`检测到${roomsInExpansionMode.length}个房间处于扩张模式，开始评估扩张目标`);
+      
+      // 寻找最适合扩张的基地房间
+      const baseRoom = this.findBestBaseRoom(roomsInExpansionMode);
+      if (!baseRoom) {
+        return;
+      }
+      
+      // 寻找最佳的扩张目标房间
+      const targetRoomName = this.findExpansionTarget(baseRoom);
+      if (!targetRoomName) {
+        console.log(`未找到合适的扩张目标房间`);
+        return;
+      }
+      
+      // 开始扩张流程
+      this.startExpansion(baseRoom, targetRoomName);
+      return;
+    }
+    
+    // 如果没有扩张任务和扩张模式的房间，每100个tick检查一次扩张机会
     if (Game.time % 100 !== 0) {
       return;
     }

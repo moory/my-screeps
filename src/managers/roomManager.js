@@ -30,7 +30,28 @@ const roomManager = {
   runExpansionMode: function(room) {
     // 扩张模式下的房间管理
     console.log(`房间 ${room.name} 正在执行扩张模式管理`);
-    // 专注于建造和升级
+    
+    // 调整生产优先级，增加建造者和升级者的数量
+    if (!room.memory.expansionPriorities) {
+      room.memory.expansionPriorities = {
+        builders: 3,
+        upgraders: 3,
+        harvesters: 2,
+        miners: room.find(FIND_SOURCES).length
+      };
+    }
+    
+    // 确保有足够的能量储备
+    const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
+    if (energyFullness < 0.7) {
+      console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
+    }
+    
+    // 检查是否有足够的 creep
+    const creepCount = room.find(FIND_MY_CREEPS).length;
+    if (creepCount < 8) {
+      console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
+    }
   },
   
   runNormalMode: function(room) {

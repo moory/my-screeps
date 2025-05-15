@@ -616,7 +616,28 @@ const roomManager$1 = {
   runExpansionMode: function(room) {
     // 扩张模式下的房间管理
     console.log(`房间 ${room.name} 正在执行扩张模式管理`);
-    // 专注于建造和升级
+    
+    // 调整生产优先级，增加建造者和升级者的数量
+    if (!room.memory.expansionPriorities) {
+      room.memory.expansionPriorities = {
+        builders: 3,
+        upgraders: 3,
+        harvesters: 2,
+        miners: room.find(FIND_SOURCES).length
+      };
+    }
+    
+    // 确保有足够的能量储备
+    const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
+    if (energyFullness < 0.7) {
+      console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
+    }
+    
+    // 检查是否有足够的 creep
+    const creepCount = room.find(FIND_MY_CREEPS).length;
+    if (creepCount < 8) {
+      console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
+    }
   },
   
   runNormalMode: function(room) {
@@ -698,7 +719,40 @@ var expansionManager$1 = {
    * @param {Game} game - 游戏对象
    */
   run(game) {
-    // 每100个tick检查一次扩张机会
+    // 检查是否有正在进行的扩张任务
+    if (Memory.expansion) {
+      // 如果有扩张任务，处理它
+      this.processExpansion();
+      return;
+    }
+    
+    // 检查是否有房间处于扩张模式
+    const roomsInExpansionMode = Object.values(Game.rooms).filter(room => 
+      room.controller && room.controller.my && room.memory.mode === 'expansion'
+    );
+    
+    if (roomsInExpansionMode.length > 0) {
+      console.log(`检测到${roomsInExpansionMode.length}个房间处于扩张模式，开始评估扩张目标`);
+      
+      // 寻找最适合扩张的基地房间
+      const baseRoom = this.findBestBaseRoom(roomsInExpansionMode);
+      if (!baseRoom) {
+        return;
+      }
+      
+      // 寻找最佳的扩张目标房间
+      const targetRoomName = this.findExpansionTarget(baseRoom);
+      if (!targetRoomName) {
+        console.log(`未找到合适的扩张目标房间`);
+        return;
+      }
+      
+      // 开始扩张流程
+      this.startExpansion(baseRoom, targetRoomName);
+      return;
+    }
+    
+    // 如果没有扩张任务和扩张模式的房间，每100个tick检查一次扩张机会
     if (Game.time % 100 !== 0) {
       return;
     }
@@ -1349,7 +1403,7 @@ var loop = main.loop = function () {
       runNormalMode();
     }
     
-    // 通用逻辑
+    // 在通用逻辑部分调用扩张管理器
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       roomManager.run(room, currentMode);
@@ -1359,6 +1413,9 @@ var loop = main.loop = function () {
         creepManager.run(room);
       }
     }
+    
+    // 无论当前模式如何，都调用扩张管理器
+    expansionManager.run(Game);
     
     cpuManager.run();
     
