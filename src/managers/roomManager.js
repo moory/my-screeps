@@ -6,108 +6,275 @@ const constructionManager = require('./constructionManager');
 
 // 房间管理器
 const roomManager = {
+  /**
+   * 运行房间管理器
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式（normal, emergency, expansion）
+   */
   run: function(room, mode = 'normal') {
-    // 根据不同模式执行不同的房间管理逻辑
-    if (mode === 'emergency') {
-      this.runEmergencyMode(room);
-    } else if (mode === 'expansion') {
-      this.runExpansionMode(room);
-    } else {
-      this.runNormalMode(room);
-    }
-    
-    // 通用房间管理逻辑
-    this.manageSpawns(room, mode);
-    this.manageTowers(room, mode);
-    // 调用防御管理器
-    defenseManager.run(room, mode);
-    // 调用建造管理器
-    constructionManager.run(room, mode);
-
-    // 调用结构管理器
-    structureManager.run(room, mode);
-  },
-  
-  runEmergencyMode: function(room) {
-    // 紧急模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行紧急模式管理`);
-    // 专注于防御和基本资源收集
-  },
-  
-  runExpansionMode: function(room) {
-    // 扩张模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行扩张模式管理`);
-    
-    // 调整生产优先级，增加建造者和升级者的数量
-    if (!room.memory.expansionPriorities) {
-      room.memory.expansionPriorities = {
-        builders: 3,
-        upgraders: 3,
-        harvesters: 2,
-        miners: room.find(FIND_SOURCES).length
+    // 确保房间有自己的内存对象
+    if (!room.memory.stats) {
+      room.memory.stats = {
+        lastUpdate: Game.time,
+        energyHarvested: 0,
+        energySpent: 0,
+        creepsProduced: 0
       };
     }
     
-    // 确保有足够的能量储备
-    const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
-    if (energyFullness < 0.7) {
-      console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
-    }
+    // 更新房间状态
+    this.updateRoomStatus(room);
     
-    // 检查是否有足够的 creep
-    const creepCount = room.find(FIND_MY_CREEPS).length;
-    if (creepCount < 8) {
-      console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
-    }
+    // 根据不同模式执行不同的房间管理策略
+    this.executeRoomStrategy(room, mode);
+    
+    // 调用各个子系统管理器
+    this.runSubsystems(room, mode);
   },
   
-  runNormalMode: function(room) {
-    // 正常模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行正常模式管理`);
-    // 平衡发展
-  },
-  
-  manageSpawns: function(room, mode) {
-    // 调用 spawnManager 来处理 creep 的生产
-    spawnManager.run(room);
+  /**
+   * 更新房间状态信息
+   * @param {Room} room - 要更新的房间
+   */
+  updateRoomStatus: function(room) {
+    // 更新房间基本信息
+    const status = {
+      energyAvailable: room.energyAvailable,
+      energyCapacity: room.energyCapacityAvailable,
+      controllerLevel: room.controller ? room.controller.level : 0,
+      controllerProgress: room.controller ? room.controller.progress : 0,
+      hostileCount: room.find(FIND_HOSTILE_CREEPS).length,
+      myCreepCount: room.find(FIND_MY_CREEPS).length,
+      constructionSites: room.find(FIND_CONSTRUCTION_SITES).length,
+      timestamp: Game.time
+    };
     
-    // 根据不同模式调整生产优先级
-    const spawns = room.find(FIND_MY_SPAWNS);
+    // 存储状态信息
+    room.memory.status = status;
     
-    for (const spawn of spawns) {
-      if (spawn.spawning) continue;
-      
-      if (mode === 'emergency') {
-        // 紧急模式下优先生产采集单位和防御单位
-        // ...
-      } else if (mode === 'expansion') {
-        // 扩张模式下优先生产建造单位和升级单位
-        // ...
-      } else {
-        // 正常模式下平衡生产
-        // ...
+    // 每100个tick记录一次历史数据
+    if (Game.time % 100 === 0) {
+      if (!room.memory.history) room.memory.history = [];
+      room.memory.history.push(status);
+      // 保持历史记录不超过50条
+      if (room.memory.history.length > 50) {
+        room.memory.history.shift();
       }
     }
   },
   
+  /**
+   * 根据模式执行房间策略
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  executeRoomStrategy: function(room, mode) {
+    // 获取对应模式的策略并执行
+    const strategy = this.strategies[mode] || this.strategies.normal;
+    strategy.execute(room);
+    
+    // 记录当前执行的模式
+    room.memory.currentMode = mode;
+  },
+  
+  /**
+   * 运行所有子系统
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  runSubsystems: function(room, mode) {
+    // 调用各个子系统，传入当前模式
+    defenseManager.run(room, mode);
+    constructionManager.run(room);
+    structureManager.run(room, mode);
+    
+    // 生产管理放在最后，确保其他系统的需求已经确定
+    this.manageSpawns(room, mode);
+    this.manageTowers(room, mode);
+  },
+  
+  /**
+   * 管理生产单位
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  manageSpawns: function(room, mode) {
+    // 根据当前模式调整生产优先级
+    const priorities = this.getPriorityByMode(room, mode);
+    
+    // 将优先级信息传递给生产管理器
+    if (priorities) {
+      room.memory.spawnPriorities = priorities;
+    }
+    
+    // 调用生产管理器
+    spawnManager.run(room);
+  },
+  
+  /**
+   * 根据模式获取生产优先级
+   * @param {Room} room - 房间对象
+   * @param {string} mode - 运行模式
+   * @returns {Object} 优先级配置
+   */
+  getPriorityByMode: function(room, mode) {
+    // 根据不同模式返回不同的优先级配置
+    switch(mode) {
+      case 'emergency':
+        return {
+          harvester: 3,
+          upgrader: 1,
+          builder: 1,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
+      case 'expansion':
+        return {
+          harvester: 2,
+          upgrader: 3,
+          builder: 3,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
+      default: // normal
+        return {
+          harvester: 2,
+          upgrader: 2,
+          builder: 2,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
+    }
+  },
+  
+  /**
+   * 管理防御塔
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
   manageTowers: function(room, mode) {
-    // 根据不同模式调整防御塔行为
     const towers = room.find(FIND_MY_STRUCTURES, {
       filter: { structureType: STRUCTURE_TOWER }
     });
     
+    if (towers.length === 0) return;
+    
+    // 根据模式设置塔的行为优先级
+    const priorities = mode === 'emergency' 
+      ? ['attack', 'heal', 'repair'] 
+      : ['heal', 'attack', 'repair'];
+    
     for (const tower of towers) {
-      if (mode === 'emergency') {
-        // 紧急模式下优先攻击敌人
+      // 遍历优先级执行塔的行为
+      for (const action of priorities) {
+        if (this.executeTowerAction(tower, action, room)) {
+          break; // 如果执行了某个行为，就不再执行后续行为
+        }
+      }
+    }
+  },
+  
+  /**
+   * 执行塔的具体行为
+   * @param {StructureTower} tower - 防御塔对象
+   * @param {string} action - 行为类型
+   * @param {Room} room - 房间对象
+   * @returns {boolean} 是否执行了行为
+   */
+  executeTowerAction: function(tower, action, room) {
+    switch(action) {
+      case 'attack':
         const hostiles = room.find(FIND_HOSTILE_CREEPS);
         if (hostiles.length > 0) {
           tower.attack(hostiles[0]);
-          continue;
+          return true;
+        }
+        break;
+      case 'heal':
+        const injured = room.find(FIND_MY_CREEPS, {
+          filter: c => c.hits < c.hitsMax
+        });
+        if (injured.length > 0) {
+          tower.heal(injured[0]);
+          return true;
+        }
+        break;
+      case 'repair':
+        // 只在能量充足时修理（>50%）
+        if (tower.store.energy > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
+          const structures = room.find(FIND_STRUCTURES, {
+            filter: s => s.hits < s.hitsMax * 0.7 && 
+                      s.structureType !== STRUCTURE_WALL && 
+                      s.structureType !== STRUCTURE_RAMPART
+          });
+          if (structures.length > 0) {
+            tower.repair(structures[0]);
+            return true;
+          }
+        }
+        break;
+    }
+    return false;
+  },
+  
+  /**
+   * 不同模式的策略定义
+   */
+  strategies: {
+    // 正常模式策略
+    normal: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行正常模式管理`);
+        // 平衡发展策略
+        // 确保基础设施完善
+        room.memory.buildPriority = ['extension', 'container', 'storage', 'tower'];
+      }
+    },
+    
+    // 紧急模式策略
+    emergency: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行紧急模式管理`);
+        // 专注于防御和基本资源收集
+        // 暂停非必要建筑
+        room.memory.buildPriority = ['tower', 'extension'];
+        
+        // 在紧急模式下，可以考虑关闭一些非必要的系统
+        room.memory.pauseUpgrade = true;
+        
+        // 如果有存储，从存储中提取能量到扩展和生产单位
+        const storage = room.storage;
+        if (storage && storage.store[RESOURCE_ENERGY] > 1000) {
+          // 标记存储为能量来源
+          room.memory.useStorage = true;
         }
       }
-      
-      // 其他模式或没有敌人时的行为
-      // ...
+    },
+    
+    // 扩张模式策略
+    expansion: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行扩张模式管理`);
+        
+        // 调整建造优先级
+        room.memory.buildPriority = ['extension', 'container', 'storage', 'tower', 'link'];
+        
+        // 确保有足够的能量储备
+        const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
+        if (energyFullness < 0.7) {
+          console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
+          room.memory.pauseExpansion = true;
+        } else {
+          room.memory.pauseExpansion = false;
+        }
+        
+        // 检查是否有足够的 creep
+        const creepCount = room.find(FIND_MY_CREEPS).length;
+        if (creepCount < 8) {
+          console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
+          room.memory.pauseExpansion = true;
+        }
+      }
     }
   }
 };
