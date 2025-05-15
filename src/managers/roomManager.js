@@ -1,5 +1,5 @@
 const creepManager = require('./creepManager');
-const structureManager = require('./structureManager');
+const towerManager = require('./towerManager');
 const defenseManager = require('./defenseManager');
 const spawnManager = require('./spawnManager');
 const constructionManager = require('./constructionManager');
@@ -86,7 +86,7 @@ const roomManager = {
     // 调用各个子系统，传入当前模式
     defenseManager.run(room, mode);
     constructionManager.run(room);
-    structureManager.run(room, mode);
+    towerManager.run(room, mode);
     
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);
