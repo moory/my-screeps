@@ -8,6 +8,7 @@ module.exports = {
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
         const miners = getCreepsByRole('miner');
+        const scouts = getCreepsByRole('scout');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -201,11 +202,21 @@ module.exports = {
         console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
         console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 矿工=${miners.length}/${desiredMiners}, 修理工=${repairers.length}/${desiredRepairers}, 建造者=${builders.length}/${desiredBuilders}, 升级者=${upgraders.length}/2`);
 
+        // 尝试按优先级生成creep
+        let spawnAttempted = false;
         for (const { condition, role } of spawnPriority) {
             if (condition) {
                 console.log(`尝试生成 ${role}...`);
-                if (spawnRole(role)) break;
+                if (spawnRole(role)) {
+                    spawnAttempted = true;
+                    break;
+                }
             }
+        }
+
+        // 如果没有尝试生成任何creep，输出调试信息
+        if (!spawnAttempted) {
+            console.log(`没有需要生成的creep，所有角色数量已满足需求`);
         }
     }
 };

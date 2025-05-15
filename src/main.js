@@ -28,8 +28,8 @@ module.exports.loop = function () {
     } else if (currentMode === 'expansion') {
       // 扩张模式逻辑
       runExpansionMode();
-      // 调用扩张管理器
-      expansionManager.run(Game);
+      // 暂时屏蔽扩张管理器调用
+      // expansionManager.run(Game);
     } else {
       // 正常模式逻辑
       runNormalMode();
@@ -46,8 +46,8 @@ module.exports.loop = function () {
       }
     }
     
-    // 无论当前模式如何，都调用扩张管理器
-    expansionManager.run(Game);
+    // 暂时屏蔽扩张管理器调用
+    // expansionManager.run(Game);
     
     cpuManager.run();
     

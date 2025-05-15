@@ -8,6 +8,10 @@ module.exports = {
    * @param {Game} game - 游戏对象
    */
   run(game) {
+    // 暂时屏蔽扩张功能
+    console.log('扩张功能已暂时禁用，等待逻辑改进');
+    return;
+    
     // 检查是否有正在进行的扩张任务
     if (Memory.expansion) {
       // 如果有扩张任务，处理它
