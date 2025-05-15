@@ -90,7 +90,6 @@ const roomManager = {
     
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);
-    this.manageTowers(room, mode);
   },
   
   /**
@@ -145,76 +144,6 @@ const roomManager = {
           miner: room.find(FIND_SOURCES).length
         };
     }
-  },
-  
-  /**
-   * 管理防御塔
-   * @param {Room} room - 要管理的房间
-   * @param {string} mode - 运行模式
-   */
-  manageTowers: function(room, mode) {
-    const towers = room.find(FIND_MY_STRUCTURES, {
-      filter: { structureType: STRUCTURE_TOWER }
-    });
-    
-    if (towers.length === 0) return;
-    
-    // 根据模式设置塔的行为优先级
-    const priorities = mode === 'emergency' 
-      ? ['attack', 'heal', 'repair'] 
-      : ['heal', 'attack', 'repair'];
-    
-    for (const tower of towers) {
-      // 遍历优先级执行塔的行为
-      for (const action of priorities) {
-        if (this.executeTowerAction(tower, action, room)) {
-          break; // 如果执行了某个行为，就不再执行后续行为
-        }
-      }
-    }
-  },
-  
-  /**
-   * 执行塔的具体行为
-   * @param {StructureTower} tower - 防御塔对象
-   * @param {string} action - 行为类型
-   * @param {Room} room - 房间对象
-   * @returns {boolean} 是否执行了行为
-   */
-  executeTowerAction: function(tower, action, room) {
-    switch(action) {
-      case 'attack':
-        const hostiles = room.find(FIND_HOSTILE_CREEPS);
-        if (hostiles.length > 0) {
-          tower.attack(hostiles[0]);
-          return true;
-        }
-        break;
-      case 'heal':
-        const injured = room.find(FIND_MY_CREEPS, {
-          filter: c => c.hits < c.hitsMax
-        });
-        if (injured.length > 0) {
-          tower.heal(injured[0]);
-          return true;
-        }
-        break;
-      case 'repair':
-        // 只在能量充足时修理（>50%）
-        if (tower.store.energy > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
-          const structures = room.find(FIND_STRUCTURES, {
-            filter: s => s.hits < s.hitsMax * 0.7 && 
-                      s.structureType !== STRUCTURE_WALL && 
-                      s.structureType !== STRUCTURE_RAMPART
-          });
-          if (structures.length > 0) {
-            tower.repair(structures[0]);
-            return true;
-          }
-        }
-        break;
-    }
-    return false;
   },
   
   /**

@@ -590,12 +590,19 @@ var creepManager$1 = {
     },
 };
 
-var structureManager$1 = {
-  run(room) {
+var towerManager$1 = {
+  run(room, mode = 'normal') {
     const towers = room.find(FIND_MY_STRUCTURES, {
       filter: { structureType: STRUCTURE_TOWER }
     });
 
+    if (towers.length === 0) return;
+
+    // 根据模式设置塔的行为优先级
+    const priorities = mode === 'emergency' 
+      ? ['attack', 'heal', 'repair'] 
+      : ['heal', 'attack', 'repair'];
+    
     const hostiles = room.find(FIND_HOSTILE_CREEPS);
     let primaryTarget = null;
 
@@ -617,60 +624,90 @@ var structureManager$1 = {
     }
 
     for (const tower of towers) {
-      // 1. 攻击敌人（优先目标）
-      const hostilesInRange = tower.pos.findInRange(FIND_HOSTILE_CREEPS, 25);
-      if (hostilesInRange.length > 0) {
-        // 改进墙体穿透检测逻辑
-        const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => {
-          // 只检查是否有墙，而不是任何结构
-          const structures = c.pos.lookFor(LOOK_STRUCTURES);
-          return !structures.some(s => s.structureType === STRUCTURE_WALL);
-        }));
-        
-        if (attackTarget) {
-          tower.attack(attackTarget);
-          continue;
-        }
-      }
-      if (primaryTarget) {
-        tower.attack(primaryTarget);
-        continue; // 如果有主要目标，优先攻击，不执行其他操作
-      }
-
-      // 2. 治疗受伤的友方 creep
-      const injuredCreep = tower.pos.findClosestByRange(FIND_MY_CREEPS, {
-        filter: c => c.hits < c.hitsMax
-      });
-      if (injuredCreep) {
-        tower.heal(injuredCreep);
-        continue; // 如果有受伤的 creep，优先治疗，不执行修复
-      }
-
-      // 3. 修复重要建筑
-      // 只有当能量超过 50% 时才修复建筑，保留能量应对攻击
-      if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
-        // 优先修复重要建筑：容器、道路、防御墙和城墙
-        // 使用 findInRange 限制修复范围在 20 格以内，保证至少 50% 的修复效率
-        const criticalStructures = tower.pos.findInRange(FIND_STRUCTURES, 20, {
-          filter: s =>
-            ((s.structureType === STRUCTURE_CONTAINER ||
-              s.structureType === STRUCTURE_ROAD) &&
-             s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
-            ((s.structureType === STRUCTURE_RAMPART ||
-              s.structureType === STRUCTURE_WALL) &&
-             s.hits < 300000) // 防御墙和城墙低于 300000 时修复
-        });
-      
-        if (criticalStructures.length > 0) {
-          // 从范围内的建筑中找到最近的一个进行修复
-          const criticalStructure = tower.pos.findClosestByRange(criticalStructures);
-          if (criticalStructure) {
-            tower.repair(criticalStructure);
-          }
+      // 根据优先级执行塔的行为
+      for (const action of priorities) {
+        if (this.executeTowerAction(tower, action, room, primaryTarget, hostiles)) {
+          break; // 如果执行了某个行为，就不再执行后续行为
         }
       }
     }
   },
+
+  /**
+   * 执行塔的具体行为
+   * @param {StructureTower} tower - 防御塔对象
+   * @param {string} action - 行为类型
+   * @param {Room} room - 房间对象
+   * @param {Creep} primaryTarget - 主要攻击目标
+   * @param {Array<Creep>} hostiles - 敌对creep列表
+   * @returns {boolean} 是否执行了行为
+   */
+  executeTowerAction(tower, action, room, primaryTarget, hostiles) {
+    switch(action) {
+      case 'attack':
+        if (hostiles.length > 0) {
+          // 优先攻击主要目标
+          if (primaryTarget) {
+            tower.attack(primaryTarget);
+            return true;
+          }
+          
+          // 改进墙体穿透检测逻辑
+          const hostilesInRange = tower.pos.findInRange(hostiles, 25);
+          if (hostilesInRange.length > 0) {
+            const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => {
+              // 只检查是否有墙，而不是任何结构
+              const structures = c.pos.lookFor(LOOK_STRUCTURES);
+              return !structures.some(s => s.structureType === STRUCTURE_WALL);
+            }));
+            
+            if (attackTarget) {
+              tower.attack(attackTarget);
+              return true;
+            }
+          }
+        }
+        break;
+        
+      case 'heal':
+        // 治疗受伤的友方 creep
+        const injuredCreep = tower.pos.findClosestByRange(FIND_MY_CREEPS, {
+          filter: c => c.hits < c.hitsMax
+        });
+        if (injuredCreep) {
+          tower.heal(injuredCreep);
+          return true;
+        }
+        break;
+        
+      case 'repair':
+        // 只有当能量超过 50% 时才修复建筑，保留能量应对攻击
+        if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
+          // 优先修复重要建筑：容器、道路、防御墙和城墙
+          // 使用 findInRange 限制修复范围在 20 格以内，保证至少 50% 的修复效率
+          const criticalStructures = tower.pos.findInRange(FIND_STRUCTURES, 20, {
+            filter: s =>
+              ((s.structureType === STRUCTURE_CONTAINER ||
+                s.structureType === STRUCTURE_ROAD) &&
+               s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
+              ((s.structureType === STRUCTURE_RAMPART ||
+                s.structureType === STRUCTURE_WALL) &&
+               s.hits < 300000) // 防御墙和城墙低于 300000 时修复
+          });
+        
+          if (criticalStructures.length > 0) {
+            // 从范围内的建筑中找到最近的一个进行修复
+            const criticalStructure = tower.pos.findClosestByRange(criticalStructures);
+            if (criticalStructure) {
+              tower.repair(criticalStructure);
+              return true;
+            }
+          }
+        }
+        break;
+    }
+    return false;
+  }
 };
 
 var defenseManager$1 = {
@@ -1423,104 +1460,211 @@ var constructionManager$1 = {
   }
 };
 
-const structureManager = structureManager$1;
+const towerManager = towerManager$1;
 const defenseManager = defenseManager$1;
 const spawnManager = spawnManager$1;
 const constructionManager = constructionManager$1;
 
 // 房间管理器
 const roomManager$1 = {
+  /**
+   * 运行房间管理器
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式（normal, emergency, expansion）
+   */
   run: function(room, mode = 'normal') {
-    // 根据不同模式执行不同的房间管理逻辑
-    if (mode === 'emergency') {
-      this.runEmergencyMode(room);
-    } else if (mode === 'expansion') {
-      this.runExpansionMode(room);
-    } else {
-      this.runNormalMode(room);
-    }
-    
-    // 通用房间管理逻辑
-    this.manageSpawns(room, mode);
-    this.manageTowers(room, mode);
-    // 调用防御管理器
-    defenseManager.run(room, mode);
-    // 调用建造管理器
-    constructionManager.run(room, mode);
-
-    // 调用结构管理器
-    structureManager.run(room, mode);
-  },
-  
-  runEmergencyMode: function(room) {
-    // 紧急模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行紧急模式管理`);
-    // 专注于防御和基本资源收集
-  },
-  
-  runExpansionMode: function(room) {
-    // 扩张模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行扩张模式管理`);
-    
-    // 调整生产优先级，增加建造者和升级者的数量
-    if (!room.memory.expansionPriorities) {
-      room.memory.expansionPriorities = {
-        builders: 3,
-        upgraders: 3,
-        harvesters: 2,
-        miners: room.find(FIND_SOURCES).length
+    // 确保房间有自己的内存对象
+    if (!room.memory.stats) {
+      room.memory.stats = {
+        lastUpdate: Game.time,
+        energyHarvested: 0,
+        energySpent: 0,
+        creepsProduced: 0
       };
     }
     
-    // 确保有足够的能量储备
-    const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
-    if (energyFullness < 0.7) {
-      console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
-    }
+    // 更新房间状态
+    this.updateRoomStatus(room);
     
-    // 检查是否有足够的 creep
-    const creepCount = room.find(FIND_MY_CREEPS).length;
-    if (creepCount < 8) {
-      console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
+    // 根据不同模式执行不同的房间管理策略
+    this.executeRoomStrategy(room, mode);
+    
+    // 调用各个子系统管理器
+    this.runSubsystems(room, mode);
+  },
+  
+  /**
+   * 更新房间状态信息
+   * @param {Room} room - 要更新的房间
+   */
+  updateRoomStatus: function(room) {
+    // 更新房间基本信息
+    const status = {
+      energyAvailable: room.energyAvailable,
+      energyCapacity: room.energyCapacityAvailable,
+      controllerLevel: room.controller ? room.controller.level : 0,
+      controllerProgress: room.controller ? room.controller.progress : 0,
+      hostileCount: room.find(FIND_HOSTILE_CREEPS).length,
+      myCreepCount: room.find(FIND_MY_CREEPS).length,
+      constructionSites: room.find(FIND_CONSTRUCTION_SITES).length,
+      timestamp: Game.time
+    };
+    
+    // 存储状态信息
+    room.memory.status = status;
+    
+    // 每100个tick记录一次历史数据
+    if (Game.time % 100 === 0) {
+      if (!room.memory.history) room.memory.history = [];
+      room.memory.history.push(status);
+      // 保持历史记录不超过50条
+      if (room.memory.history.length > 50) {
+        room.memory.history.shift();
+      }
     }
   },
   
-  runNormalMode: function(room) {
-    // 正常模式下的房间管理
-    console.log(`房间 ${room.name} 正在执行正常模式管理`);
-    // 平衡发展
+  /**
+   * 根据模式执行房间策略
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  executeRoomStrategy: function(room, mode) {
+    // 获取对应模式的策略并执行
+    const strategy = this.strategies[mode] || this.strategies.normal;
+    strategy.execute(room);
+    
+    // 记录当前执行的模式
+    room.memory.currentMode = mode;
   },
   
+  /**
+   * 运行所有子系统
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  runSubsystems: function(room, mode) {
+    // 调用各个子系统，传入当前模式
+    defenseManager.run(room, mode);
+    constructionManager.run(room);
+    towerManager.run(room, mode);
+    
+    // 生产管理放在最后，确保其他系统的需求已经确定
+    this.manageSpawns(room, mode);
+  },
+  
+  /**
+   * 管理生产单位
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
   manageSpawns: function(room, mode) {
-    // 调用 spawnManager 来处理 creep 的生产
+    // 根据当前模式调整生产优先级
+    const priorities = this.getPriorityByMode(room, mode);
+    
+    // 将优先级信息传递给生产管理器
+    if (priorities) {
+      room.memory.spawnPriorities = priorities;
+    }
+    
+    // 调用生产管理器
     spawnManager.run(room);
-    
-    // 根据不同模式调整生产优先级
-    const spawns = room.find(FIND_MY_SPAWNS);
-    
-    for (const spawn of spawns) {
-      if (spawn.spawning) continue;
+  },
+  
+  /**
+   * 根据模式获取生产优先级
+   * @param {Room} room - 房间对象
+   * @param {string} mode - 运行模式
+   * @returns {Object} 优先级配置
+   */
+  getPriorityByMode: function(room, mode) {
+    // 根据不同模式返回不同的优先级配置
+    switch(mode) {
+      case 'emergency':
+        return {
+          harvester: 3,
+          upgrader: 1,
+          builder: 1,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
+      case 'expansion':
+        return {
+          harvester: 2,
+          upgrader: 3,
+          builder: 3,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
+      default: // normal
+        return {
+          harvester: 2,
+          upgrader: 2,
+          builder: 2,
+          repairer: 1,
+          miner: room.find(FIND_SOURCES).length
+        };
     }
   },
   
-  manageTowers: function(room, mode) {
-    // 根据不同模式调整防御塔行为
-    const towers = room.find(FIND_MY_STRUCTURES, {
-      filter: { structureType: STRUCTURE_TOWER }
-    });
+  /**
+   * 不同模式的策略定义
+   */
+  strategies: {
+    // 正常模式策略
+    normal: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行正常模式管理`);
+        // 平衡发展策略
+        // 确保基础设施完善
+        room.memory.buildPriority = ['extension', 'container', 'storage', 'tower'];
+      }
+    },
     
-    for (const tower of towers) {
-      if (mode === 'emergency') {
-        // 紧急模式下优先攻击敌人
-        const hostiles = room.find(FIND_HOSTILE_CREEPS);
-        if (hostiles.length > 0) {
-          tower.attack(hostiles[0]);
-          continue;
+    // 紧急模式策略
+    emergency: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行紧急模式管理`);
+        // 专注于防御和基本资源收集
+        // 暂停非必要建筑
+        room.memory.buildPriority = ['tower', 'extension'];
+        
+        // 在紧急模式下，可以考虑关闭一些非必要的系统
+        room.memory.pauseUpgrade = true;
+        
+        // 如果有存储，从存储中提取能量到扩展和生产单位
+        const storage = room.storage;
+        if (storage && storage.store[RESOURCE_ENERGY] > 1000) {
+          // 标记存储为能量来源
+          room.memory.useStorage = true;
         }
       }
-      
-      // 其他模式或没有敌人时的行为
-      // ...
+    },
+    
+    // 扩张模式策略
+    expansion: {
+      execute: function(room) {
+        console.log(`房间 ${room.name} 正在执行扩张模式管理`);
+        
+        // 调整建造优先级
+        room.memory.buildPriority = ['extension', 'container', 'storage', 'tower', 'link'];
+        
+        // 确保有足够的能量储备
+        const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
+        if (energyFullness < 0.7) {
+          console.log(`房间 ${room.name} 能量储备不足 (${Math.floor(energyFullness * 100)}%)，暂缓扩张`);
+          room.memory.pauseExpansion = true;
+        } else {
+          room.memory.pauseExpansion = false;
+        }
+        
+        // 检查是否有足够的 creep
+        const creepCount = room.find(FIND_MY_CREEPS).length;
+        if (creepCount < 8) {
+          console.log(`房间 ${room.name} creep 数量不足 (${creepCount}/8)，暂缓扩张`);
+          room.memory.pauseExpansion = true;
+        }
+      }
     }
   }
 };
