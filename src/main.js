@@ -6,6 +6,7 @@ const constructionManager = require('./managers/constructionManager');
 const expansionManager = require('./managers/expansionManager');
 const configManager = require('./managers/configManager');
 const consoleCommands = require('./utils/consoleCommands');
+const creepManager = require('./managers/creepManager'); // 确保导入 creepManager
 
 // 加载控制台命令
 consoleCommands();
@@ -38,12 +39,20 @@ module.exports.loop = function () {
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       roomManager.run(room, currentMode);
+      
+      // 确保每个房间的 creep 都被管理
+      if (room.controller && room.controller.my) {
+        creepManager.run(room);
+      }
     }
     
     cpuManager.run();
     
     // 检测是否需要自动切换模式
     checkAndSwitchModes();
+  }, function(error) {
+    // 添加错误处理回调，记录详细错误信息
+    console.log('游戏循环出错: ' + error + '\n' + error.stack);
   });
 };
 
