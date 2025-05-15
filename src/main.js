@@ -5,7 +5,6 @@ const { tryCatch } = require('./utils/errorCatcher');
 const expansionManager = require('./managers/expansionManager');
 const configManager = require('./managers/configManager');
 const consoleCommands = require('./utils/consoleCommands');
-const creepManager = require('./managers/creepManager');
 
 // 加载控制台命令
 consoleCommands();
