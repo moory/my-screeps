@@ -2,11 +2,10 @@ const roomManager = require('./managers/roomManager');
 const memoryManager = require('./managers/memoryManager');
 const cpuManager = require('./managers/cpuManager');
 const { tryCatch } = require('./utils/errorCatcher');
-const constructionManager = require('./managers/constructionManager');
 const expansionManager = require('./managers/expansionManager');
 const configManager = require('./managers/configManager');
 const consoleCommands = require('./utils/consoleCommands');
-const creepManager = require('./managers/creepManager'); // 确保导入 creepManager
+const creepManager = require('./managers/creepManager');
 
 // 加载控制台命令
 consoleCommands();
@@ -34,8 +33,7 @@ module.exports.loop = function () {
       // 正常模式逻辑
       runNormalMode();
     }
-    
-    // 在通用逻辑部分调用扩张管理器
+
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       roomManager.run(room, currentMode);
