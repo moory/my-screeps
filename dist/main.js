@@ -562,28 +562,32 @@ const roleRepairer = role_repairer;
 const roleMiner = role_miner;
 
 var creepManager$1 = {
-    run(room) {
+    run(room, mode = 'normal') {
+        // 现在可以根据 mode 调整 creep 行为
         for (const name in Game.creeps) {
             const creep = Game.creeps[name];
-            // 移除房间检查，让所有Creep都能执行其角色逻辑
-            // 或者改为检查Creep的home属性，如果有的话
-            // if (creep.room.name !== room.name) continue;
-
+            
             switch (creep.memory.role) {
                 case 'harvester':
-                    roleHarvester.run(creep);
+                    roleHarvester.run(creep, mode);  // 可以将 mode 传递给角色函数
                     break;
                 case 'builder':
-                    roleBuilder.run(creep);
+                    roleBuilder.run(creep, mode);
                     break;
                 case 'upgrader':
-                    roleUpgrader.run(creep);
+                    // 在紧急模式下可能想要暂停升级控制器
+                    if (mode === 'emergency' && room.memory.pauseUpgrade) {
+                        // 可以让升级者临时变成采集者
+                        roleHarvester.run(creep, mode);
+                    } else {
+                        roleUpgrader.run(creep, mode);
+                    }
                     break;
                 case 'repairer':
-                    roleRepairer.run(creep);
+                    roleRepairer.run(creep, mode);
                     break;
                 case 'miner':
-                    roleMiner.run(creep);
+                    roleMiner.run(creep, mode);
                     break;
             }
         }
@@ -1460,6 +1464,7 @@ var constructionManager$1 = {
   }
 };
 
+const creepManager = creepManager$1;
 const towerManager = towerManager$1;
 const defenseManager = defenseManager$1;
 const spawnManager = spawnManager$1;
@@ -1548,6 +1553,7 @@ const roomManager$1 = {
     defenseManager.run(room, mode);
     constructionManager.run(room);
     towerManager.run(room, mode);
+    creepManager.run(room, mode); // 修改这里，传入 mode 参数
     
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);
@@ -1825,7 +1831,6 @@ const cpuManager = cpuManager$1;
 const { tryCatch } = errorCatcher;
 const configManager = configManager_1;
 const consoleCommands = consoleCommands$1;
-const creepManager = creepManager$1; // 确保导入 creepManager
 
 // 加载控制台命令
 consoleCommands();
@@ -1853,15 +1858,12 @@ var loop = main.loop = function () {
       // 正常模式逻辑
       runNormalMode();
     }
-    
-    // 在通用逻辑部分调用扩张管理器
+
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
-      roomManager.run(room, currentMode);
-      
-      // 确保每个房间的 creep 都被管理
       if (room.controller && room.controller.my) {
-        creepManager.run(room);
+        roomManager.run(room, currentMode);
+        // 移除对 creepManager.run 的调用，因为它现在在 roomManager 中被调用
       }
     }
     

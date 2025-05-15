@@ -87,6 +87,7 @@ const roomManager = {
     defenseManager.run(room, mode);
     constructionManager.run(room);
     towerManager.run(room, mode);
+    creepManager.run(room, mode); // 修改这里，传入 mode 参数
     
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);

@@ -36,11 +36,9 @@ module.exports.loop = function () {
 
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
-      roomManager.run(room, currentMode);
-      
-      // 确保每个房间的 creep 都被管理
       if (room.controller && room.controller.my) {
-        creepManager.run(room);
+        roomManager.run(room, currentMode);
+        // 移除对 creepManager.run 的调用，因为它现在在 roomManager 中被调用
       }
     }
     

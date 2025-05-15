@@ -5,28 +5,32 @@ const roleRepairer = require('../roles/role.repairer');
 const roleMiner = require('../roles/role.miner');
 
 module.exports = {
-    run(room) {
+    run(room, mode = 'normal') {
+        // 现在可以根据 mode 调整 creep 行为
         for (const name in Game.creeps) {
             const creep = Game.creeps[name];
-            // 移除房间检查，让所有Creep都能执行其角色逻辑
-            // 或者改为检查Creep的home属性，如果有的话
-            // if (creep.room.name !== room.name) continue;
-
+            
             switch (creep.memory.role) {
                 case 'harvester':
-                    roleHarvester.run(creep);
+                    roleHarvester.run(creep, mode);  // 可以将 mode 传递给角色函数
                     break;
                 case 'builder':
-                    roleBuilder.run(creep);
+                    roleBuilder.run(creep, mode);
                     break;
                 case 'upgrader':
-                    roleUpgrader.run(creep);
+                    // 在紧急模式下可能想要暂停升级控制器
+                    if (mode === 'emergency' && room.memory.pauseUpgrade) {
+                        // 可以让升级者临时变成采集者
+                        roleHarvester.run(creep, mode);
+                    } else {
+                        roleUpgrader.run(creep, mode);
+                    }
                     break;
                 case 'repairer':
-                    roleRepairer.run(creep);
+                    roleRepairer.run(creep, mode);
                     break;
                 case 'miner':
-                    roleMiner.run(creep);
+                    roleMiner.run(creep, mode);
                     break;
             }
         }
