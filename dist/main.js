@@ -777,29 +777,35 @@ var spawnManager$1 = {
 
         // 优化后的身体部件模板
         const bodyTemplates = {
-            // 采集者：平衡采集和运输能力
+            // 采集者：增强运输能力，适合RCL4
             harvester: {
-                base: [WORK, CARRY, MOVE],
+                base: [WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: 3
+            },
+            // 工人：平衡建造和升级能力，增加WORK部件
+            worker: {
+                base: [WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                pattern: [WORK, CARRY, MOVE],
+                maxPatternRepeats: 3
+            },
+            // 修理者：增加WORK和CARRY部件，提高修理效率
+            repairer: {
+                base: [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE],
                 pattern: [WORK, CARRY, CARRY, MOVE, MOVE],
                 maxPatternRepeats: 2
             },
-            // 工人：平衡建造和升级能力
-            worker: {
-                base: [WORK, CARRY, MOVE],
-                pattern: [WORK, CARRY, MOVE],
-                maxPatternRepeats: 4
-            },
-            // 修理者：增加WORK部件，提高修理效率
-            repairer: {
-                base: [WORK, WORK, CARRY, CARRY, MOVE, MOVE],
-                pattern: [WORK, CARRY, CARRY, MOVE],
-                maxPatternRepeats: 2
-            },
-            // 矿工：专注于采集，固定5个WORK部件
+            // 矿工：专注于采集，固定5个WORK部件，增加移动速度
             miner: {
-                base: [WORK, WORK, WORK, WORK, WORK, MOVE, MOVE, MOVE],
+                base: [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE],
                 pattern: [],
                 maxPatternRepeats: 0
+            },
+            // 升级者：专注于升级控制器
+            upgrader: {
+                base: [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                pattern: [WORK, CARRY, MOVE],
+                maxPatternRepeats: 3
             }
         };
 
@@ -816,6 +822,8 @@ var spawnManager$1 = {
                 template = bodyTemplates.harvester;
             } else if (role === 'repairer') {
                 template = bodyTemplates.repairer;
+            } else if (role === 'upgrader' && bodyTemplates.upgrader) {
+                template = bodyTemplates.upgrader;
             } else {
                 template = bodyTemplates.worker;
             }
