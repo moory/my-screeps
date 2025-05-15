@@ -66,25 +66,45 @@ function runNormalMode() {
 }
 
 function checkAndSwitchModes() {
-  // 自动检测是否需要切换模式
+  // 检查是否有任何房间需要紧急模式
+  let needEmergency = false;
+  let canExpand = true;
+  let currentMode = configManager.getMode();
+  
   for (const roomName in Game.rooms) {
     const room = Game.rooms[roomName];
     
-    // 如果房间能量严重不足或受到攻击，切换到紧急模式
+    // 检查是否需要紧急模式
     if (room.energyAvailable < room.energyCapacityAvailable * 0.2 || 
         room.find(FIND_HOSTILE_CREEPS).length > 0) {
+      needEmergency = true;
+    }
+    
+    // 检查是否不满足扩张条件
+    if (!(room.energyAvailable > room.energyCapacityAvailable * 0.8 && 
+        room.controller && room.controller.level >= 3)) {
+      canExpand = false;
+    }
+  }
+  
+  // 根据检查结果切换模式
+  if (needEmergency) {
+    // 如果需要紧急模式且当前不是紧急模式，切换到紧急模式
+    if (currentMode !== 'emergency') {
       configManager.switchToEmergency();
-      return;
+    }
+  } else if (canExpand && currentMode === 'normal') {
+    // 如果可以扩张且当前是正常模式，切换到扩张模式
+    configManager.switchToExpansion();
+  } else if (!needEmergency) {
+    // 从紧急模式恢复
+    if (currentMode === 'emergency') {
+      configManager.switchToNormal();
     }
     
-    // 如果房间能量充足且控制器等级高，考虑切换到扩张模式
-    if (room.energyAvailable > room.energyCapacityAvailable * 0.8 && 
-        room.controller && room.controller.level >= 3 &&
-        configManager.getMode() === 'normal') {
-      configManager.switchToExpansion();
-      return;
+    // 从扩张模式返回（可以根据需要添加额外条件）
+    if (currentMode === 'expansion' && !canExpand) {
+      configManager.switchToNormal();
     }
-    
-    // 其他条件...
   }
 }
