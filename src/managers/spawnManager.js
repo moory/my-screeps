@@ -180,7 +180,7 @@ module.exports = {
                 if (result === OK) {
                     console.log(`🚨 紧急采集者已生成!`);
                 } else {
-                    console.log(`❌ 紧急生成失败: ${result}`);
+                    console.log(`❌ 紧急生成失败: ${result}, 能量: ${energy}/${room.energyCapacityAvailable}`);
                 }
             } else {
                 console.log(`🚫 能量不足 (${energy}) 无法生成紧急采集者.`);
@@ -197,8 +197,15 @@ module.exports = {
             { condition: upgraders.length < 2, role: 'upgrader' }
         ];
 
+        // 添加调试信息
+        console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
+        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 矿工=${miners.length}/${desiredMiners}, 修理工=${repairers.length}/${desiredRepairers}, 建造者=${builders.length}/${desiredBuilders}, 升级者=${upgraders.length}/2`);
+
         for (const { condition, role } of spawnPriority) {
-            if (condition && spawnRole(role)) break;
+            if (condition) {
+                console.log(`尝试生成 ${role}...`);
+                if (spawnRole(role)) break;
+            }
         }
     }
 };
