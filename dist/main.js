@@ -565,7 +565,9 @@ var creepManager$1 = {
     run(room) {
         for (const name in Game.creeps) {
             const creep = Game.creeps[name];
-            if (creep.room.name !== room.name) continue;
+            // 移除房间检查，让所有Creep都能执行其角色逻辑
+            // 或者改为检查Creep的home属性，如果有的话
+            // if (creep.room.name !== room.name) continue;
 
             switch (creep.memory.role) {
                 case 'harvester':
