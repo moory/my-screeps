@@ -30,6 +30,35 @@ global.setCustomMode = function(modeName, options = {}) {
   return `已切换到自定义模式: ${modeName}`;
 };
 
+// 添加侦察兵控制命令
+global.moveScout = function(roomName) {
+  const scout = Game.creeps.scout_69511200;
+  if (!scout) {
+    return '找不到侦察兵 scout_69511200';
+  }
+  
+  if (!roomName) {
+    return '请指定目标房间名称';
+  }
+  
+  // 设置移动目标
+  scout.memory.targetRoom = roomName;
+  
+  // 简单的移动逻辑
+  if (scout.room.name !== roomName) {
+    const exitDir = Game.map.findExit(scout.room, roomName);
+    if (exitDir === ERR_NO_PATH) {
+      return `无法找到到达 ${roomName} 的路径`;
+    }
+    
+    const exit = scout.pos.findClosestByPath(exitDir);
+    scout.moveTo(exit);
+    return `侦察兵正在移动到 ${roomName}`;
+  } else {
+    return `侦察兵已经在 ${roomName} 房间内`;
+  }
+};
+
 module.exports = function() {
   // 初始化控制台命令
   console.log('控制台命令已加载，可使用以下命令:');
