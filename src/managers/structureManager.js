@@ -58,18 +58,23 @@ module.exports = {
       // 只有当能量超过 50% 时才修复建筑，保留能量应对攻击
       if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.5) {
         // 优先修复重要建筑：容器、道路、防御墙和城墙
-        const criticalStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {
+        // 使用 findInRange 限制修复范围在 20 格以内，保证至少 50% 的修复效率
+        const criticalStructures = tower.pos.findInRange(FIND_STRUCTURES, 20, {
           filter: s =>
             ((s.structureType === STRUCTURE_CONTAINER ||
               s.structureType === STRUCTURE_ROAD) &&
              s.hits < s.hitsMax * 0.5) || // 容器和道路低于 50% 时修复
             ((s.structureType === STRUCTURE_RAMPART ||
               s.structureType === STRUCTURE_WALL) &&
-             s.hits < 300000) // 防御墙和城墙低于 200000 时修复 (这个值可以根据您的基地情况调整)
+             s.hits < 300000) // 防御墙和城墙低于 300000 时修复
         });
-
-        if (criticalStructure) {
-          tower.repair(criticalStructure);
+      
+        if (criticalStructures.length > 0) {
+          // 从范围内的建筑中找到最近的一个进行修复
+          const criticalStructure = tower.pos.findClosestByRange(criticalStructures);
+          if (criticalStructure) {
+            tower.repair(criticalStructure);
+          }
         }
       }
     }
