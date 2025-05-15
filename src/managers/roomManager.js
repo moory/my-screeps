@@ -61,6 +61,9 @@ const roomManager = {
   },
   
   manageSpawns: function(room, mode) {
+    // 调用 spawnManager 来处理 creep 的生产
+    spawnManager.run(room);
+    
     // 根据不同模式调整生产优先级
     const spawns = room.find(FIND_MY_SPAWNS);
     
