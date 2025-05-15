@@ -19,6 +19,13 @@ const roomManager = {
     // 通用房间管理逻辑
     this.manageSpawns(room, mode);
     this.manageTowers(room, mode);
+    // 调用防御管理器
+    defenseManager.run(room, mode);
+    // 调用建造管理器
+    constructionManager.run(room, mode);
+
+    // 调用结构管理器
+    structureManager.run(room, mode);
   },
   
   runEmergencyMode: function(room) {
