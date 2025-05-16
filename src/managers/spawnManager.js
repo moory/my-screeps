@@ -213,15 +213,16 @@ module.exports = {
         // 生成优先级
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
-            { condition: miners.length < desiredMiners, role: 'miner' },
-            { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: collectors.length < desiredCollectors, role: 'collector' },
+            { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
-            { condition: upgraders.length < 2, role: 'upgrader' }
+            { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: miners.length < desiredMiners, role: 'miner' }
         ];
 
         // 添加调试信息
         console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
-        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 矿工=${miners.length}/${desiredMiners}, 修理工=${repairers.length}/${desiredRepairers}, 建造者=${builders.length}/${desiredBuilders}, 升级者=${upgraders.length}/2`);
+        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}`);
 
         // 尝试按优先级生成creep
         let spawnAttempted = false;

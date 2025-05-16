@@ -555,11 +555,107 @@ var role_miner = {
     }
 };
 
+var role_collector = {
+  run(creep) {
+    // 如果背包已满，将资源运送到存储设施
+    if (creep.store.getFreeCapacity() === 0) {
+      // 优先存放到Storage
+      let target = creep.room.storage;
+      
+      // 如果没有Storage，则寻找Container
+      if (!target) {
+        target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+          filter: s => s.structureType === STRUCTURE_CONTAINER &&
+                      s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+      }
+      
+      // 如果没有存储设施，则将能量送到Spawn或Extension
+      if (!target) {
+        target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+          filter: s => (s.structureType === STRUCTURE_EXTENSION ||
+                      s.structureType === STRUCTURE_SPAWN) &&
+                      s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+      }
+      
+      if (target) {
+        // 遍历背包中的所有资源类型并转移
+        for (const resourceType in creep.store) {
+          if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}});
+            break; // 一旦开始移动就跳出循环
+          }
+        }
+      }
+    }
+    // 如果背包未满，寻找掉落资源
+    else {
+      // 优先寻找非能量资源（可能是Invader掉落的矿物）
+      let droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
+        filter: resource => resource.resourceType !== RESOURCE_ENERGY
+      });
+      
+      // 如果没有找到非能量资源，再寻找掉落的能量
+      if (!droppedResource) {
+        droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
+      }
+      
+      // 如果找到了掉落资源，拾取它
+      if (droppedResource) {
+        if (creep.pickup(droppedResource) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(droppedResource, {visualizePathStyle: {stroke: '#ffaa00'}});
+        }
+        creep.say('🧹 收集');
+      } else {
+        // 如果没有掉落资源，寻找墓碑并获取其中的资源
+        const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
+          filter: tomb => tomb.store.getUsedCapacity() > 0
+        });
+        
+        if (tombstone) {
+          // 从墓碑中提取第一种可用资源
+          for (const resourceType in tombstone.store) {
+            if (creep.withdraw(tombstone, resourceType) === ERR_NOT_IN_RANGE) {
+              creep.moveTo(tombstone, {visualizePathStyle: {stroke: '#ffaa00'}});
+              break; // 一旦开始移动就跳出循环
+            }
+          }
+          creep.say('💀 收集');
+        } else {
+          // 如果没有掉落资源和墓碑，寻找废墟
+          const ruin = creep.pos.findClosestByPath(FIND_RUINS, {
+            filter: r => r.store.getUsedCapacity() > 0
+          });
+          
+          if (ruin) {
+            // 从废墟中提取第一种可用资源
+            for (const resourceType in ruin.store) {
+              if (creep.withdraw(ruin, resourceType) === ERR_NOT_IN_RANGE) {
+                creep.moveTo(ruin, {visualizePathStyle: {stroke: '#ffaa00'}});
+                break; // 一旦开始移动就跳出循环
+              }
+            }
+            creep.say('🏚️ 收集');
+          } else {
+            // 如果什么都没找到，就待在房间中央或控制器附近
+            creep.moveTo(new RoomPosition(25, 25, creep.room.name), {
+              visualizePathStyle: {stroke: '#ffaa00'},
+              range: 5
+            });
+          }
+        }
+      }
+    }
+  }
+};
+
 const roleHarvester = role_harvester;
 const roleBuilder = role_builder;
 const roleUpgrader = role_upgrader;
 const roleRepairer = role_repairer;
 const roleMiner = role_miner;
+const roleCollector = role_collector; // 添加新角色
 
 var creepManager$1 = {
     run(room, mode = 'normal') {
@@ -569,7 +665,7 @@ var creepManager$1 = {
             
             switch (creep.memory.role) {
                 case 'harvester':
-                    roleHarvester.run(creep, mode);  // 可以将 mode 传递给角色函数
+                    roleHarvester.run(creep, mode);
                     break;
                 case 'builder':
                     roleBuilder.run(creep, mode);
@@ -589,9 +685,12 @@ var creepManager$1 = {
                 case 'miner':
                     roleMiner.run(creep, mode);
                     break;
+                case 'collector':
+                    roleCollector.run(creep, mode);
+                    break;
             }
         }
-    },
+    }
 };
 
 var towerManager$1 = {
@@ -759,6 +858,7 @@ var spawnManager$1 = {
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
         const miners = getCreepsByRole('miner');
+        const collectors = getCreepsByRole('collector'); // 添加收集者
         getCreepsByRole('scout');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
@@ -774,6 +874,18 @@ var spawnManager$1 = {
         }).length > 0 ? 2 : 1;
         // 每个能量源分配一个矿工
         const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
+        
+        // 检查是否有掉落资源或墓碑来决定是否需要收集者
+        const droppedResources = room.find(FIND_DROPPED_RESOURCES);
+        const tombstones = room.find(FIND_TOMBSTONES, { 
+            filter: tomb => tomb.store.getUsedCapacity() > 0 
+        });
+        const ruins = room.find(FIND_RUINS, { 
+            filter: ruin => ruin.store.getUsedCapacity() > 0 
+        });
+        
+        // 如果有掉落资源、墓碑或废墟，则需要收集者
+        const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
 
         // 优化后的身体部件模板
         const bodyTemplates = {
@@ -951,15 +1063,16 @@ var spawnManager$1 = {
         // 生成优先级
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
-            { condition: miners.length < desiredMiners, role: 'miner' },
-            { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: collectors.length < desiredCollectors, role: 'collector' },
+            { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
-            { condition: upgraders.length < 2, role: 'upgrader' }
+            { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: miners.length < desiredMiners, role: 'miner' }
         ];
 
         // 添加调试信息
         console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
-        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 矿工=${miners.length}/${desiredMiners}, 修理工=${repairers.length}/${desiredRepairers}, 建造者=${builders.length}/${desiredBuilders}, 升级者=${upgraders.length}/2`);
+        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}`);
 
         // 尝试按优先级生成creep
         let spawnAttempted = false;
@@ -1793,35 +1906,6 @@ commonjsGlobal.setCustomMode = function(modeName, options = {}) {
   }
   
   return `已切换到自定义模式: ${modeName}`;
-};
-
-// 添加侦察兵控制命令
-commonjsGlobal.moveScout = function(roomName) {
-  const scout = Game.creeps.scout_69511200;
-  if (!scout) {
-    return '找不到侦察兵 scout_69511200';
-  }
-  
-  if (!roomName) {
-    return '请指定目标房间名称';
-  }
-  
-  // 设置移动目标
-  scout.memory.targetRoom = roomName;
-  
-  // 简单的移动逻辑
-  if (scout.room.name !== roomName) {
-    const exitDir = Game.map.findExit(scout.room, roomName);
-    if (exitDir === ERR_NO_PATH) {
-      return `无法找到到达 ${roomName} 的路径`;
-    }
-    
-    const exit = scout.pos.findClosestByPath(exitDir);
-    scout.moveTo(exit);
-    return `侦察兵正在移动到 ${roomName}`;
-  } else {
-    return `侦察兵已经在 ${roomName} 房间内`;
-  }
 };
 
 var consoleCommands$1 = function() {
