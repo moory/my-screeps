@@ -3,6 +3,7 @@ const roleBuilder = require('../roles/role.builder');
 const roleUpgrader = require('../roles/role.upgrader');
 const roleRepairer = require('../roles/role.repairer');
 const roleMiner = require('../roles/role.miner');
+const roleCollector = require('../roles/role.collector'); // 添加新角色
 
 module.exports = {
     run(room, mode = 'normal') {
@@ -12,7 +13,7 @@ module.exports = {
             
             switch (creep.memory.role) {
                 case 'harvester':
-                    roleHarvester.run(creep, mode);  // 可以将 mode 传递给角色函数
+                    roleHarvester.run(creep, mode);
                     break;
                 case 'builder':
                     roleBuilder.run(creep, mode);
@@ -32,7 +33,10 @@ module.exports = {
                 case 'miner':
                     roleMiner.run(creep, mode);
                     break;
+                case 'collector':
+                    roleCollector.run(creep, mode);
+                    break;
             }
         }
-    },
+    }
 };

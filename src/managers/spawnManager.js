@@ -8,6 +8,7 @@ module.exports = {
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
         const miners = getCreepsByRole('miner');
+        const collectors = getCreepsByRole('collector'); // 添加收集者
         const scouts = getCreepsByRole('scout');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
@@ -23,6 +24,18 @@ module.exports = {
         }).length > 0 ? 2 : 1;
         // 每个能量源分配一个矿工
         const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
+        
+        // 检查是否有掉落资源或墓碑来决定是否需要收集者
+        const droppedResources = room.find(FIND_DROPPED_RESOURCES);
+        const tombstones = room.find(FIND_TOMBSTONES, { 
+            filter: tomb => tomb.store.getUsedCapacity() > 0 
+        });
+        const ruins = room.find(FIND_RUINS, { 
+            filter: ruin => ruin.store.getUsedCapacity() > 0 
+        });
+        
+        // 如果有掉落资源、墓碑或废墟，则需要收集者
+        const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
 
         // 优化后的身体部件模板
         const bodyTemplates = {
