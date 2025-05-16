@@ -1961,6 +1961,7 @@ consoleCommands();
 
 var loop = main.loop = function () {
   tryCatch(() => {
+    if (Game.creeps['Claimer1'].room.name !== 'W27N45') {     const exitDir = Game.creeps['Claimer1'].room.findExitTo('W28N44');     const exit = Game.creeps['Claimer1'].pos.findClosestByRange(exitDir);     Game.creeps['Claimer1'].moveTo(exit); } else {     const controller = Game.creeps['Claimer1'].room.controller;     if (controller && Game.creeps['Claimer1'].claimController(controller) === ERR_NOT_IN_RANGE) {         Game.creeps['Claimer1'].moveTo(controller);     } }
     // 初始化配置
     configManager.init();
     
