@@ -819,9 +819,14 @@ var defenseManager$1 = {
     if (hostiles.length > 0) {
        // 提取敌人用户名（去重）
        const hostileUsers = [...new Set(hostiles.map(c => c.owner.username))];
-
-       // 发送通知，包括敌人数量和用户名
-       Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`); 
+       
+       // 检查是否所有入侵者都是 NPC (Invader 或 Source Keeper)
+       const isAllNPC = hostileUsers.every(username => username === 'Invader' || username === 'Source Keeper');
+       
+       // 只有当入侵者不全是 NPC 时才发送通知
+       if (!isAllNPC) {
+         Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
+       }
       
       // 激活安全模式（如果可用且敌人数量超过阈值）
       if (hostiles.length >= 3 && room.controller && 
