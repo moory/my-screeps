@@ -10,7 +10,6 @@ module.exports = {
         const miners = getCreepsByRole('miner');
         const collectors = getCreepsByRole('collector'); // 添加收集者
         const scouts = getCreepsByRole('scout');
-        const claimers = getCreepsByRole('claimer'); // 新增
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -70,11 +69,6 @@ module.exports = {
                 pattern: [WORK, CARRY, MOVE],
                 maxPatternRepeats: 3
             },
-            claimer: {
-                base: [CLAIM, MOVE],
-                pattern: [],
-                maxPatternRepeats: 0
-            }
         };
 
         // 根据可用能量生成最优身体部件
@@ -84,9 +78,7 @@ module.exports = {
 
             // 选择合适的模板
             let template;
-            if (role === 'claimer') {
-                template = bodyTemplates.claimer;
-            }else if (role === 'miner') {
+            if (role === 'miner') {
                 template = bodyTemplates.miner;
             } else if (role === 'harvester') {
                 template = bodyTemplates.harvester;
@@ -181,7 +173,7 @@ module.exports = {
             const result = spawn.spawnCreep(
                 body,
                 `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
-                role === 'claimer' ? { memory: { role, targetRoom: 'W27N45', home: 'W27N44' } } : { memory: { role } }
+                { memory: { role } }
             );
             
             if (result === OK) {
@@ -225,7 +217,6 @@ module.exports = {
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
-            { condition: claimers.length < 1, role: 'claimer' },
             { condition: miners.length < desiredMiners, role: 'miner' }
         ];
 

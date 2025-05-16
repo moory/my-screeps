@@ -5,7 +5,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 var main = {};
-
+if (Game.creeps['Claimer1'].room.name !== 'W27N45') {     const exitDir = Game.creeps['Claimer1'].room.findExitTo('W27N45');     const exit = Game.creeps['Claimer1'].pos.findClosestByRange(exitDir);     Game.creeps['Claimer1'].moveTo(exit); } else {     const controller = Game.creeps['Claimer1'].room.controller;     if (controller && Game.creeps['Claimer1'].claimController(controller) === ERR_NOT_IN_RANGE) {         Game.creeps['Claimer1'].moveTo(controller);     } }
 var role_harvester = {
     run(creep) {
         // 自动清理无效内存
@@ -892,7 +892,6 @@ var spawnManager$1 = {
         const miners = getCreepsByRole('miner');
         const collectors = getCreepsByRole('collector'); // 添加收集者
         getCreepsByRole('scout');
-        const claimers = getCreepsByRole('claimer'); // 新增
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -952,11 +951,6 @@ var spawnManager$1 = {
                 pattern: [WORK, CARRY, MOVE],
                 maxPatternRepeats: 3
             },
-            claimer: {
-                base: [CLAIM, MOVE],
-                pattern: [],
-                maxPatternRepeats: 0
-            }
         };
 
         // 根据可用能量生成最优身体部件
@@ -966,9 +960,7 @@ var spawnManager$1 = {
 
             // 选择合适的模板
             let template;
-            if (role === 'claimer') {
-                template = bodyTemplates.claimer;
-            }else if (role === 'miner') {
+            if (role === 'miner') {
                 template = bodyTemplates.miner;
             } else if (role === 'harvester') {
                 template = bodyTemplates.harvester;
@@ -1063,7 +1055,7 @@ var spawnManager$1 = {
             const result = spawn.spawnCreep(
                 body,
                 `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
-                role === 'claimer' ? { memory: { role, targetRoom: 'W27N45', home: 'W27N44' } } : { memory: { role } }
+                { memory: { role } }
             );
             
             if (result === OK) {
@@ -1107,7 +1099,6 @@ var spawnManager$1 = {
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
-            { condition: claimers.length < 1, role: 'claimer' },
             { condition: miners.length < desiredMiners, role: 'miner' }
         ];
 
