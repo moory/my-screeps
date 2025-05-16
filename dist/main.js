@@ -865,6 +865,7 @@ var spawnManager$1 = {
         const miners = getCreepsByRole('miner');
         const collectors = getCreepsByRole('collector'); // 添加收集者
         getCreepsByRole('scout');
+        const claimers = getCreepsByRole('claimer'); // 新增
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -923,6 +924,11 @@ var spawnManager$1 = {
                 base: [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE],
                 pattern: [WORK, CARRY, MOVE],
                 maxPatternRepeats: 3
+            },
+            claimer: {
+                base: [CLAIM, MOVE],
+                pattern: [],
+                maxPatternRepeats: 0
             }
         };
 
@@ -933,7 +939,9 @@ var spawnManager$1 = {
 
             // 选择合适的模板
             let template;
-            if (role === 'miner') {
+            if (role === 'claimer') {
+                template = bodyTemplates.claimer;
+            }else if (role === 'miner') {
                 template = bodyTemplates.miner;
             } else if (role === 'harvester') {
                 template = bodyTemplates.harvester;
@@ -1028,7 +1036,7 @@ var spawnManager$1 = {
             const result = spawn.spawnCreep(
                 body,
                 `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
-                { memory: { role } }
+                role === 'claimer' ? { memory: { role, targetRoom: 'W27N45', home: 'W27N44' } } : { memory: { role } }
             );
             
             if (result === OK) {
@@ -1072,6 +1080,7 @@ var spawnManager$1 = {
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
+            { condition: claimers.length < 1, role: 'claimer' },
             { condition: miners.length < desiredMiners, role: 'miner' }
         ];
 
