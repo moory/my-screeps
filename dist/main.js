@@ -5,6 +5,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 var main = {};
+
 var role_harvester = {
     run(creep) {
         // 自动清理无效内存
@@ -1959,7 +1960,6 @@ const consoleCommands = consoleCommands$1;
 consoleCommands();
 
 var loop = main.loop = function () {
-  if (Game.creeps['Claimer1'].room.name !== 'W27N45') {     const exitDir = Game.creeps['Claimer1'].room.findExitTo('W27N45');     const exit = Game.creeps['Claimer1'].pos.findClosestByRange(exitDir);     Game.creeps['Claimer1'].moveTo(exit); } else {     const controller = Game.creeps['Claimer1'].room.controller;     if (controller && Game.creeps['Claimer1'].claimController(controller) === ERR_NOT_IN_RANGE) {         Game.creeps['Claimer1'].moveTo(controller);     } }
   tryCatch(() => {
     // 初始化配置
     configManager.init();
