@@ -1,11 +1,11 @@
 module.exports = {
   run(creep) {
     // 如果目前不在W27N45就前往
-    if (creep.room.name !== 'W27N45') {
-      const targetRoom = new RoomPosition(27, 45, 'W27N45');
-      creep.moveTo(targetRoom, {visualizePathStyle: {stroke: '#ffffff'}});
-      return;
-    }
+    // if (creep.room.name !== 'W27N45') {
+    //   const targetRoom = new RoomPosition(27, 45, 'W27N45');
+    //   creep.moveTo(targetRoom, {visualizePathStyle: {stroke: '#ffffff'}});
+    //   return;
+    // }
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.building = false;
