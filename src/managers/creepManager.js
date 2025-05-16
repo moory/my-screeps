@@ -3,7 +3,8 @@ const roleBuilder = require('../roles/role.builder');
 const roleUpgrader = require('../roles/role.upgrader');
 const roleRepairer = require('../roles/role.repairer');
 const roleMiner = require('../roles/role.miner');
-const roleCollector = require('../roles/role.collector'); // 添加新角色
+const roleCollector = require('../roles/role.collector');
+const roleClaimer = require('../roles/role.claimer');
 
 module.exports = {
     run(room, mode = 'normal') {
@@ -15,6 +16,9 @@ module.exports = {
                 case 'harvester':
                     roleHarvester.run(creep, mode);
                     break;
+                    case 'claimer':
+                        roleClaimer.run(creep, mode);
+                        break;
                 case 'builder':
                     roleBuilder.run(creep, mode);
                     break;
