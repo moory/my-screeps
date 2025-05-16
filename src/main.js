@@ -21,7 +21,15 @@ module.exports.loop = function () {
 if (creep.room.name !== 'W27N45') {
   const exit = creep.room.findExitTo('W27N45');
   creep.moveTo(creep.pos.findClosestByRange(exit));
-} 
+} else{
+  const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+  if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+    creep.moveTo(source, {
+      visualizePathStyle: { stroke: '#ffaa00' }
+    });
+  }
+  
+}
     
     // 根据当前模式执行不同逻辑
     const currentMode = configManager.getMode();
