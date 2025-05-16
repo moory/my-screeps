@@ -1966,19 +1966,12 @@ var loop = main.loop = function () {
     
     // 清理内存
     memoryManager.run();
-
-    const creep = Game.creeps['dismantler1'];
+    
+    const creep = Game.creeps['EmergencyHarvester_69553156'];
 if (creep.room.name !== creep.memory.targetRoom) {
   const exit = creep.room.findExitTo(creep.memory.targetRoom);
   creep.moveTo(creep.pos.findClosestByRange(exit));
-} else {
-  const target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES);
-  if (target) {
-    if (creep.dismantle(target) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(target);
-    }
-  }
-}
+} 
     
     // 根据当前模式执行不同逻辑
     const currentMode = configManager.getMode();
