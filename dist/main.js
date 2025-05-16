@@ -1968,10 +1968,10 @@ var loop = main.loop = function () {
     memoryManager.run();
     
     const creep = Game.creeps['EmergencyHarvester_69553156'];
-// if (creep.room.name !== 'W27N45') {
+if (creep.room.name !== 'W27N45') {
   const exit = creep.room.findExitTo('W27N45');
   creep.moveTo(creep.pos.findClosestByRange(exit));
-// } 
+} 
     
     // 根据当前模式执行不同逻辑
     const currentMode = configManager.getMode();
