@@ -18,8 +18,8 @@ module.exports.loop = function () {
     memoryManager.run();
     
     const creep = Game.creeps['EmergencyHarvester_69553156'];
-if (creep.room.name !== creep.memory.targetRoom) {
-  const exit = creep.room.findExitTo(creep.memory.targetRoom);
+if (creep.room.name !== 'W27N45') {
+  const exit = creep.room.findExitTo('W27N45');
   creep.moveTo(creep.pos.findClosestByRange(exit));
 } 
     
