@@ -25,34 +25,79 @@ module.exports = {
             }
         }
         
+        // 设置工作状态
+        if (creep.memory.harvesting && creep.store.getFreeCapacity() === 0) {
+            creep.memory.harvesting = false;
+            creep.say('🚚 运输');
+        }
+        if (!creep.memory.harvesting && creep.store[RESOURCE_ENERGY] === 0) {
+            creep.memory.harvesting = true;
+            creep.say('🔄 采集');
+            // 重新选择能量源
+            delete creep.memory.sourceId;
+            delete creep.memory.cachedPath;
+        }
+        
         // 自动清理无效内存
-        if (!creep.memory.sourceId || !Game.getObjectById(creep.memory.sourceId)) {
+        if (creep.memory.sourceId && !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
         }
 
-        // ✅ 尝试重新绑定 source
-        if (!creep.memory.sourceId) {
-            const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-            if (source) {
-                creep.memory.sourceId = source.id;
-                const path = creep.pos.findPathTo(source, {
-                    serialize: true,
-                    ignoreCreeps: true
-                });
-                creep.memory.cachedPath = path;
-            } else {
-                // ✅ 如果找不到能量源，moveTo 控制器附近等待
-                if (creep.room.controller) {
-                    creep.moveTo(creep.room.controller);
+        // 采集模式
+        if (creep.memory.harvesting) {
+            // 尝试重新绑定 source
+            if (!creep.memory.sourceId) {
+                // 使用FIND_SOURCES而不是FIND_SOURCES_ACTIVE
+                const sources = creep.room.find(FIND_SOURCES);
+                
+                // 找到当前分配harvester最少的能量源
+                const sourceAssignments = {};
+                
+                // 初始化每个能量源的harvester数量为0
+                for (const source of sources) {
+                    sourceAssignments[source.id] = 0;
                 }
-                return;
+                
+                // 统计每个能量源的harvester数量
+                for (const name in Game.creeps) {
+                    const otherCreep = Game.creeps[name];
+                    if (otherCreep.memory.role === 'harvester' && otherCreep.memory.sourceId) {
+                        sourceAssignments[otherCreep.memory.sourceId] = 
+                            (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
+                    }
+                }
+                
+                // 找到分配harvester最少的能量源
+                let minAssignedSource = null;
+                let minAssignedCount = Infinity;
+                
+                for (const sourceId in sourceAssignments) {
+                    if (sourceAssignments[sourceId] < minAssignedCount) {
+                        minAssignedCount = sourceAssignments[sourceId];
+                        minAssignedSource = sourceId;
+                    }
+                }
+                
+                if (minAssignedSource) {
+                    creep.memory.sourceId = minAssignedSource;
+                    const source = Game.getObjectById(minAssignedSource);
+                    const path = creep.pos.findPathTo(source, {
+                        serialize: true,
+                        ignoreCreeps: true
+                    });
+                    creep.memory.cachedPath = path;
+                } else {
+                    // 如果找不到能量源，moveTo 控制器附近等待
+                    if (creep.room.controller) {
+                        creep.moveTo(creep.room.controller);
+                    }
+                    return;
+                }
             }
-        }
 
-        const source = Game.getObjectById(creep.memory.sourceId);
+            const source = Game.getObjectById(creep.memory.sourceId);
 
-        if (creep.store.getFreeCapacity() > 0) {
             // 首先尝试从Container获取能量
             const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
                 filter: s => s.structureType === STRUCTURE_CONTAINER &&
@@ -91,6 +136,10 @@ module.exports = {
                             reusePath: 3
                         });
                     }
+                } else if (harvestResult === ERR_NOT_ENOUGH_RESOURCES && creep.store[RESOURCE_ENERGY] > 0) {
+                    // 如果能量源已空但背包有能量，切换到运输模式
+                    creep.memory.harvesting = false;
+                    creep.say('🚚 运输');
                 }
             }
         } else {
