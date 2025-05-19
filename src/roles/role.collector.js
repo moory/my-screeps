@@ -117,19 +117,39 @@ module.exports = {
             creep.say('🏚️ 收集');
           } else {
             // 如果什么都没找到，就去把Container中的资源搬运到Extension中或Storage中
+            // 检查是否有需要能量的Extension或Spawn
+            const needsEnergy = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+              filter: s => (s.structureType === STRUCTURE_EXTENSION ||
+                s.structureType === STRUCTURE_SPAWN) &&
+                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            });
+            
+            // 寻找有资源的Container
             const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
               filter: s => s.structureType === STRUCTURE_CONTAINER &&
                 s.store.getUsedCapacity() > 0
             });
-
+            
             if (container) {
-              for (const resourceType in container.store) {
-                if (creep.withdraw(container, resourceType) === ERR_NOT_IN_RANGE) {
+              // 如果有需要能量的建筑且Container中有能量，优先提取能量
+              if (needsEnergy && container.store[RESOURCE_ENERGY] > 0) {
+                if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
                   creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
-                  break; // 一旦开始移动就跳出循环
+                  creep.say('📦 取能量');
+                }
+              } 
+              // 否则提取Container中的任意资源
+              else {
+                for (const resourceType in container.store) {
+                  if (container.store[resourceType] > 0) {
+                    if (creep.withdraw(container, resourceType) === ERR_NOT_IN_RANGE) {
+                      creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
+                      creep.say('📦 搬运');
+                      break; // 一旦开始移动就跳出循环
+                    }
+                  }
                 }
               }
-              creep.say('📦 搬运');
             }
           }
         }
