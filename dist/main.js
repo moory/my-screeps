@@ -861,6 +861,12 @@ var role_collector = {
                 s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
             
+            // 搬运后立即检查背包容量
+            if (creep.store.getFreeCapacity() === 0) {
+              creep.memory.working = true;
+              return;
+            }
+            
             // 寻找有资源的Container
             const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
               filter: s => s.structureType === STRUCTURE_CONTAINER &&
@@ -879,10 +885,14 @@ var role_collector = {
               else {
                 for (const resourceType in container.store) {
                   if (container.store[resourceType] > 0) {
-                    if (creep.withdraw(container, resourceType) === ERR_NOT_IN_RANGE) {
+                    const result = creep.withdraw(container, resourceType);
+                    if (result === ERR_NOT_IN_RANGE) {
                       creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
                       creep.say('📦 搬运');
-                      break; // 一旦开始移动就跳出循环
+                      break;
+                    } else if (result === OK) {
+                      // 提取成功后立即返回，防止重复操作
+                      return;
                     }
                   }
                 }
@@ -1186,8 +1196,8 @@ var spawnManager$1 = {
                 (s.structureType !== STRUCTURE_WALL || s.hits < 10000) &&
                 (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
         }).length > 0 ? 2 : 1;
-        // 每个能量源分配一个矿工
-        const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
+        
+        const desiredMiners = room.controller.level >= 2 ? 3 : 0;
 
         // 检查是否有掉落资源或墓碑来决定是否需要收集者
         const droppedResources = room.find(FIND_DROPPED_RESOURCES);

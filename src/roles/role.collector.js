@@ -124,6 +124,12 @@ module.exports = {
                 s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
             
+            // 搬运后立即检查背包容量
+            if (creep.store.getFreeCapacity() === 0) {
+              creep.memory.working = true;
+              return;
+            }
+            
             // 寻找有资源的Container
             const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
               filter: s => s.structureType === STRUCTURE_CONTAINER &&
@@ -142,10 +148,14 @@ module.exports = {
               else {
                 for (const resourceType in container.store) {
                   if (container.store[resourceType] > 0) {
-                    if (creep.withdraw(container, resourceType) === ERR_NOT_IN_RANGE) {
+                    const result = creep.withdraw(container, resourceType);
+                    if (result === ERR_NOT_IN_RANGE) {
                       creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
                       creep.say('📦 搬运');
-                      break; // 一旦开始移动就跳出循环
+                      break;
+                    } else if (result === OK) {
+                      // 提取成功后立即返回，防止重复操作
+                      return;
                     }
                   }
                 }
