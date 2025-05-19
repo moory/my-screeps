@@ -9,7 +9,7 @@ module.exports = {
         const repairers = getCreepsByRole('repairer');
         const miners = getCreepsByRole('miner');
         const collectors = getCreepsByRole('collector');
-        const scouts = getCreepsByRole('scout');
+        const defenders = getCreepsByRole('defender');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
