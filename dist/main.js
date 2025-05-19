@@ -865,27 +865,64 @@ var role_collector = {
   }
 };
 
-var role_claimer = {
-  run(creep) {
-    // 1) 先移到目标房间
-    if (creep.room.name !== creep.memory.targetRoom) {
-      const exit = creep.room.findExitTo(creep.memory.targetRoom);
-      creep.moveTo(creep.pos.findClosestByRange(exit));
-      return;
-    }
-
-    // 2) 到房间后，拿 Controller 升到自己名下
-    const ctrl = creep.room.controller;
-    if (ctrl) {
-      // 如果 RCL 还是 0，直接 claim，成功后 RCL===1
-      if (!ctrl.owner || !ctrl.my) {
-        const res = creep.claimController(ctrl);
-        if (res === OK) {
-          creep.say('Claimed! 👍');
+var role_defender = {
+    run(creep) {
+        // 检查房间是否处于攻击状态
+        if (!creep.room.memory.underAttack) {
+            // 如果没有敌人，返回出生点附近待命
+            const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+            if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+                creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ffffff' } });
+                creep.say('🛡️ 待命');
+            }
+            return;
         }
-      }
+
+        // 寻找最近的敌人
+        const hostiles = creep.room.find(FIND_HOSTILE_CREEPS);
+        if (hostiles.length === 0) {
+            // 没有敌人但房间仍标记为被攻击，可能是误报
+            creep.say('🛡️ 巡逻');
+            return;
+        }
+
+        // 优先攻击治疗单位
+        const healers = hostiles.filter(c => 
+            c.body.some(part => part.type === HEAL && part.hits > 0)
+        );
+        
+        // 如果有治疗单位，优先攻击
+        let target = null;
+        if (healers.length > 0) {
+            target = creep.pos.findClosestByPath(healers);
+        } else {
+            // 否则攻击最近的敌人
+            target = creep.pos.findClosestByPath(hostiles);
+        }
+
+        // 执行攻击
+        if (target) {
+            // 检查敌人是否在攻击范围内
+            if (creep.attack(target) === ERR_NOT_IN_RANGE) {
+                creep.moveTo(target, { 
+                    visualizePathStyle: { stroke: '#ff0000' },
+                    reusePath: 3
+                });
+                creep.say('⚔️ 攻击');
+            } else {
+                creep.say('⚔️ 战斗中');
+            }
+            
+            // 如果生命值低于50%，撤退到出生点附近
+            if (creep.hits < creep.hitsMax * 0.5) {
+                const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+                if (spawn) {
+                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+                    creep.say('🛡️ 撤退');
+                }
+            }
+        }
     }
-  }
 };
 
 const roleHarvester = role_harvester;
@@ -894,7 +931,7 @@ const roleUpgrader = role_upgrader;
 const roleRepairer = role_repairer;
 const roleMiner = role_miner;
 const roleCollector = role_collector;
-const roleClaimer = role_claimer;
+const roleDefender = role_defender;
 
 var creepManager$1 = {
     run(room, mode = 'normal') {
@@ -906,9 +943,6 @@ var creepManager$1 = {
                 case 'harvester':
                     roleHarvester.run(creep, mode);
                     break;
-                    case 'claimer':
-                        roleClaimer.run(creep, mode);
-                        break;
                 case 'builder':
                     roleBuilder.run(creep, mode);
                     break;
@@ -929,6 +963,9 @@ var creepManager$1 = {
                     break;
                 case 'collector':
                     roleCollector.run(creep, mode);
+                    break;
+                case 'defender':
+                    roleDefender.run(creep, mode);
                     break;
             }
         }
