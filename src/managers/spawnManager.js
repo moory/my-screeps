@@ -213,11 +213,11 @@ module.exports = {
         // 生成优先级
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
-            { condition: collectors.length < desiredCollectors, role: 'collector' },
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
-            { condition: miners.length < desiredMiners, role: 'miner' }
+            { condition: miners.length < desiredMiners, role: 'miner' },
+            { condition: collectors.length < desiredCollectors && desiredCollectors > 0, role: 'collector' },
         ];
 
         // 添加调试信息
