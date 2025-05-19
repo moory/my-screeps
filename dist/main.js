@@ -853,11 +853,21 @@ var role_collector = {
             }
             creep.say('🏚️ 收集');
           } else {
-            // 如果什么都没找到，就待在房间中央或控制器附近
-            creep.moveTo(new RoomPosition(25, 25, creep.room.name), {
-              visualizePathStyle: { stroke: '#ffaa00' },
-              range: 5
+            // 如果什么都没找到，就去把Container中的资源搬运到Extension中或Storage中
+            const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+              filter: s => s.structureType === STRUCTURE_CONTAINER &&
+                s.store.getUsedCapacity() > 0
             });
+
+            if (container) {
+              for (const resourceType in container.store) {
+                if (creep.withdraw(container, resourceType) === ERR_NOT_IN_RANGE) {
+                  creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
+                  break; // 一旦开始移动就跳出循环
+                }
+              }
+              creep.say('📦 搬运');
+            }
           }
         }
       }
