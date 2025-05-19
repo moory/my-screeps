@@ -1167,7 +1167,7 @@ var spawnManager$1 = {
         const ruins = room.find(FIND_RUINS, {
             filter: ruin => ruin.store.getUsedCapacity() > 0
         });
-
+        const desiredDefenders = 2;
         // 如果有掉落资源、墓碑或废墟，则需要收集者
         const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
         
@@ -1356,7 +1356,7 @@ var spawnManager$1 = {
             }
             return;
         }
-        const desiredDefenders = 2;
+        
         // 生成优先级
         const spawnPriority = [
             // 优先生成防御者
