@@ -62,8 +62,10 @@ const PATHFINDING = {
 const MAINTENANCE = {
   // 道路和容器修理阈值（低于最大生命值的百分比）
   INFRASTRUCTURE_REPAIR_THRESHOLD: 0.5,
-  // 防御建筑修理上限
-  DEFENSE_REPAIR_LIMIT: 100000
+  // 防御建筑修理上限（对于creep）
+  DEFENSE_REPAIR_LIMIT: 100000,
+  // 防御建筑建造上限（对于tower）
+  DEFENSE_BUILD_LIMIT: 300000,
 };
 
 // Creep 行为相关常量
