@@ -61,7 +61,7 @@ module.exports = {
           }
           
           // 改进墙体穿透检测逻辑
-          const hostilesInRange = tower.pos.findInRange(hostiles, 25);
+          const hostilesInRange = tower.pos.findInRange(hostiles, 20);
           if (hostilesInRange.length > 0) {
             const attackTarget = tower.pos.findClosestByRange(hostilesInRange.filter(c => {
               // 只检查是否有墙，而不是任何结构
