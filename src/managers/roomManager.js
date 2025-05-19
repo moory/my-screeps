@@ -41,7 +41,7 @@ const roomManager = {
   runSubsystems: function (room, mode) {
     // 调用各个子系统，传入当前模式
     defenseManager.run(room, mode);
-    constructionManager.run(room);
+    // constructionManager.run(room);
     towerManager.run(room, mode);
     creepManager.run(room, mode);
     linkManager.run(room); // 调用linkManager的run方法
@@ -103,7 +103,7 @@ const roomManager = {
   runSubsystems: function (room, mode) {
     // 调用各个子系统，传入当前模式
     defenseManager.run(room, mode);
-    constructionManager.run(room);
+    // constructionManager.run(room);
     towerManager.run(room, mode);
     creepManager.run(room, mode);
 
