@@ -419,7 +419,8 @@ var role_miner = {
                 }
             }
             
-            if (minAssignedSource) {
+            // 只有当矿工数量为0时才分配新矿工到这个能源
+            if (minAssignedSource && minAssignedCount === 0) {
                 creep.memory.sourceId = minAssignedSource;
                 const source = Game.getObjectById(minAssignedSource);
                 const path = creep.pos.findPathTo(source, {
@@ -428,6 +429,39 @@ var role_miner = {
                 });
                 creep.memory.cachedPath = path;
                 console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}`);
+            } else if (minAssignedSource && minAssignedCount > 0) {
+                // 如果所有能源都已有矿工，检查是否有即将死亡的矿工
+                let replacementFound = false;
+                for (const name in Game.creeps) {
+                    const otherCreep = Game.creeps[name];
+                    if (otherCreep.memory.role === 'miner' && 
+                        otherCreep.memory.sourceId && 
+                        otherCreep.ticksToLive < 150) { // 如果矿工剩余寿命不足150tick
+                        creep.memory.sourceId = otherCreep.memory.sourceId;
+                        creep.memory.replacingMiner = otherCreep.name;
+                        const source = Game.getObjectById(otherCreep.memory.sourceId);
+                        const path = creep.pos.findPathTo(source, {
+                            serialize: true,
+                            ignoreCreeps: true
+                        });
+                        creep.memory.cachedPath = path;
+                        console.log(`矿工 ${creep.name} 将替换即将死亡的矿工 ${otherCreep.name}`);
+                        replacementFound = true;
+                        break;
+                    }
+                }
+                
+                // 如果没有找到需要替换的矿工，则选择矿工最少的能源
+                if (!replacementFound) {
+                    creep.memory.sourceId = minAssignedSource;
+                    const source = Game.getObjectById(minAssignedSource);
+                    const path = creep.pos.findPathTo(source, {
+                        serialize: true,
+                        ignoreCreeps: true
+                    });
+                    creep.memory.cachedPath = path;
+                    console.log(`矿工 ${creep.name} 被分配到已有矿工的能量源 ${minAssignedSource}`);
+                }
             } else {
                 // 如果找不到能量源，移动到控制器附近等待
                 if (creep.room.controller) {
@@ -441,13 +475,34 @@ var role_miner = {
         
         // 寻找附近的容器
         if (!creep.memory.containerId) {
-            const containers = creep.pos.findInRange(FIND_STRUCTURES, 2, {
+            // 检查是否有其他矿工已经绑定了这个能源附近的容器
+            let containerAlreadyAssigned = false;
+            let nearestContainer = null;
+            
+            // 查找附近的容器
+            const containers = creep.pos.findInRange(FIND_STRUCTURES, 3, {
                 filter: s => s.structureType === STRUCTURE_CONTAINER
             });
             
-            // 如果附近有容器，记住它
             if (containers.length > 0) {
-                creep.memory.containerId = containers[0].id;
+                nearestContainer = containers[0];
+                
+                // 检查这个容器是否已被其他矿工绑定
+                for (const name in Game.creeps) {
+                    const otherCreep = Game.creeps[name];
+                    if (otherCreep.id !== creep.id && 
+                        otherCreep.memory.role === 'miner' && 
+                        otherCreep.memory.containerId === nearestContainer.id) {
+                        containerAlreadyAssigned = true;
+                        break;
+                    }
+                }
+                
+                // 如果容器未被绑定，则绑定它
+                if (!containerAlreadyAssigned) {
+                    creep.memory.containerId = nearestContainer.id;
+                    console.log(`矿工 ${creep.name} 绑定到容器 ${nearestContainer.id}`);
+                }
             }
         }
         
@@ -1101,11 +1156,11 @@ var spawnManager$1 = {
         // 生成优先级
         const spawnPriority = [
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
-            { condition: collectors.length < desiredCollectors, role: 'collector' },
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
-            { condition: miners.length < desiredMiners, role: 'miner' }
+            { condition: miners.length < desiredMiners, role: 'miner' },
+            { condition: collectors.length < desiredCollectors && desiredCollectors > 0, role: 'collector' },
         ];
 
         // 添加调试信息
