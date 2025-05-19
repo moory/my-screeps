@@ -8,7 +8,7 @@ module.exports = {
         const upgraders = getCreepsByRole('upgrader');
         const repairers = getCreepsByRole('repairer');
         const miners = getCreepsByRole('miner');
-        const collectors = getCreepsByRole('collector'); // 添加收集者
+        const collectors = getCreepsByRole('collector');
         const scouts = getCreepsByRole('scout');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
@@ -18,22 +18,22 @@ module.exports = {
         const baseHarvesters = room.controller.level < 3 ? 3 : 2;
         const desiredBuilders = room.find(FIND_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
         const desiredRepairers = room.find(FIND_STRUCTURES, {
-            filter: s => s.hits < s.hitsMax * 0.8 && 
-                     (s.structureType !== STRUCTURE_WALL || s.hits < 10000) && 
-                     (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
+            filter: s => s.hits < s.hitsMax * 0.8 &&
+                (s.structureType !== STRUCTURE_WALL || s.hits < 10000) &&
+                (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
         }).length > 0 ? 2 : 1;
         // 每个能量源分配一个矿工
         const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
-        
+
         // 检查是否有掉落资源或墓碑来决定是否需要收集者
         const droppedResources = room.find(FIND_DROPPED_RESOURCES);
-        const tombstones = room.find(FIND_TOMBSTONES, { 
-            filter: tomb => tomb.store.getUsedCapacity() > 0 
+        const tombstones = room.find(FIND_TOMBSTONES, {
+            filter: tomb => tomb.store.getUsedCapacity() > 0
         });
-        const ruins = room.find(FIND_RUINS, { 
-            filter: ruin => ruin.store.getUsedCapacity() > 0 
+        const ruins = room.find(FIND_RUINS, {
+            filter: ruin => ruin.store.getUsedCapacity() > 0
         });
-        
+
         // 如果有掉落资源、墓碑或废墟，则需要收集者
         const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
 
@@ -95,6 +95,9 @@ module.exports = {
                 // 如果能量足够，直接返回固定的矿工身体
                 if (energyAvailable >= _.sum(template.base.map(p => BODYPART_COST[p]))) {
                     return template.base;
+                } else if (energyAvailable >= 500) {
+                    // 否则生成一个低配矿工
+                    return [WORK, WORK, WORK, MOVE, MOVE];
                 }
                 // 否则降级为基础矿工
                 else if (energyAvailable >= 300) {
@@ -106,11 +109,11 @@ module.exports = {
             // 其他角色的身体生成
             let body = [...template.base];
             const baseCost = _.sum(body.map(p => BODYPART_COST[p]));
-            
+
             // 如果模板有pattern且能量足够
             if (template.pattern.length > 0) {
                 const patternCost = _.sum(template.pattern.map(p => BODYPART_COST[p]));
-                
+
                 // 计算可以添加多少个pattern
                 const maxRepeats = Math.min(
                     Math.floor((energyCapacity - baseCost) / patternCost),
@@ -125,7 +128,7 @@ module.exports = {
                 // 如果当前能量不足以生成完整身体，逐步缩减
                 while (_.sum(body.map(p => BODYPART_COST[p])) > energyAvailable) {
                     if (body.length <= template.base.length) break;
-                    
+
                     // 优先移除最后一个完整pattern
                     if (body.length >= template.base.length + template.pattern.length) {
                         body.splice(body.length - template.pattern.length, template.pattern.length);
@@ -133,8 +136,8 @@ module.exports = {
                         // 如果不能完整移除pattern，则从后往前移除单个部件
                         const idx =
                             body.lastIndexOf(WORK) >= 0 ? body.lastIndexOf(WORK) :
-                            body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
-                            body.lastIndexOf(MOVE);
+                                body.lastIndexOf(CARRY) >= 0 ? body.lastIndexOf(CARRY) :
+                                    body.lastIndexOf(MOVE);
                         if (idx !== -1) body.splice(idx, 1);
                         else break;
                     }
@@ -147,9 +150,9 @@ module.exports = {
             }
 
             const finalCost = _.sum(body.map(p => BODYPART_COST[p]));
-            
+
             // 确保基本功能完整
-            const hasBasicParts = role === 'miner' 
+            const hasBasicParts = role === 'miner'
                 ? body.includes(WORK) && body.includes(MOVE)
                 : body.includes(WORK) && body.includes(CARRY) && body.includes(MOVE);
 
@@ -163,19 +166,19 @@ module.exports = {
                 console.log(`⚠️ 无法为角色生成有效身体: ${role}`);
                 return false;
             }
-            
+
             // 计算身体部件统计
             const stats = body.reduce((acc, part) => {
                 acc[part] = (acc[part] || 0) + 1;
                 return acc;
             }, {});
-            
+
             const result = spawn.spawnCreep(
                 body,
                 `${role[0].toUpperCase()}${role.slice(1)}_${Game.time}`,
                 { memory: { role } }
             );
-            
+
             if (result === OK) {
                 console.log(`🛠️ 正在生成 ${role}: ${JSON.stringify(stats)} (总成本: ${_.sum(body.map(p => BODYPART_COST[p]))})`);
                 return true;
