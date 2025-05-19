@@ -1170,8 +1170,7 @@ var spawnManager$1 = {
 
         // 如果有掉落资源、墓碑或废墟，则需要收集者
         const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
-
-        const desiredDefenders = 2;
+        
         // 优化后的身体部件模板
         const bodyTemplates = {
             // 采集者：增强运输能力，适合RCL4
@@ -1357,7 +1356,7 @@ var spawnManager$1 = {
             }
             return;
         }
-
+        const desiredDefenders = 2;
         // 生成优先级
         const spawnPriority = [
             // 优先生成防御者
@@ -1885,11 +1884,57 @@ var constructionManager$1 = {
   }
 };
 
+// Link管理器，用于管理房间中的Link结构
+const linkManager$1 = {
+  // 运行Link管理器
+  run(room) {
+    // 查找房间中的所有Link结构
+    const links = room.find(FIND_MY_STRUCTURES, {
+      filter: { structureType: STRUCTURE_LINK }
+    });
+
+    // 如果没有Link结构，直接返回
+    if (links.length === 0) return;
+
+    // 识别sourceLink和targetLink
+    const [sourceLink, targetLink] = this.identifyLinks(links);
+
+    // 如果识别到sourceLink和targetLink，并且sourceLink中有能量，则进行能量传输
+    if (sourceLink && targetLink && sourceLink.store[RESOURCE_ENERGY] > 0) {
+      sourceLink.transferEnergy(targetLink);
+    }
+  },
+
+  // 识别sourceLink和targetLink
+  identifyLinks(links) {
+    let sourceLink = null;
+    let targetLink = null;
+
+    // 遍历所有Link，识别sourceLink和targetLink
+    links.forEach(link => {
+      // 如果Link在控制器附近，则认为是targetLink
+      if (link.pos.inRangeTo(link.room.controller, 3)) {
+        targetLink = link;
+      } else {
+        // 否则认为是sourceLink
+        sourceLink = link;
+      }
+    });
+
+    // 返回识别结果
+    return [sourceLink, targetLink];
+  }
+};
+
+// 导出Link管理器模块
+var linkManager_1 = linkManager$1;
+
 const creepManager = creepManager$1;
 const towerManager = towerManager$1;
 const defenseManager = defenseManager$1;
 const spawnManager = spawnManager$1;
 const constructionManager = constructionManager$1;
+const linkManager = linkManager_1; // 引入linkManager
 
 // 房间管理器
 const roomManager$1 = {
@@ -1898,7 +1943,7 @@ const roomManager$1 = {
    * @param {Room} room - 要管理的房间
    * @param {string} mode - 运行模式（normal, emergency, expansion）
    */
-  run: function(room, mode = 'normal') {
+  run: function (room, mode = 'normal') {
     // 确保房间有自己的内存对象
     if (!room.memory.stats) {
       room.memory.stats = {
@@ -1908,22 +1953,39 @@ const roomManager$1 = {
         creepsProduced: 0
       };
     }
-    
+
     // 更新房间状态
     this.updateRoomStatus(room);
-    
+
     // 根据不同模式执行不同的房间管理策略
     this.executeRoomStrategy(room, mode);
-    
+
     // 调用各个子系统管理器
     this.runSubsystems(room, mode);
   },
-  
+
+  /**
+   * 运行所有子系统
+   * @param {Room} room - 要管理的房间
+   * @param {string} mode - 运行模式
+   */
+  runSubsystems: function (room, mode) {
+    // 调用各个子系统，传入当前模式
+    defenseManager.run(room, mode);
+    constructionManager.run(room);
+    towerManager.run(room, mode);
+    creepManager.run(room, mode);
+    linkManager.run(room); // 调用linkManager的run方法
+
+    // 生产管理放在最后，确保其他系统的需求已经确定
+    this.manageSpawns(room, mode);
+  },
+
   /**
    * 更新房间状态信息
    * @param {Room} room - 要更新的房间
    */
-  updateRoomStatus: function(room) {
+  updateRoomStatus: function (room) {
     // 更新房间基本信息
     const status = {
       energyAvailable: room.energyAvailable,
@@ -1935,10 +1997,10 @@ const roomManager$1 = {
       constructionSites: room.find(FIND_CONSTRUCTION_SITES).length,
       timestamp: Game.time
     };
-    
+
     // 存储状态信息
     room.memory.status = status;
-    
+
     // 每100个tick记录一次历史数据
     if (Game.time % 100 === 0) {
       if (!room.memory.history) room.memory.history = [];
@@ -1949,64 +2011,64 @@ const roomManager$1 = {
       }
     }
   },
-  
+
   /**
    * 根据模式执行房间策略
    * @param {Room} room - 要管理的房间
    * @param {string} mode - 运行模式
    */
-  executeRoomStrategy: function(room, mode) {
+  executeRoomStrategy: function (room, mode) {
     // 获取对应模式的策略并执行
     const strategy = this.strategies[mode] || this.strategies.normal;
     strategy.execute(room);
-    
+
     // 记录当前执行的模式
     room.memory.currentMode = mode;
   },
-  
+
   /**
    * 运行所有子系统
    * @param {Room} room - 要管理的房间
    * @param {string} mode - 运行模式
    */
-  runSubsystems: function(room, mode) {
+  runSubsystems: function (room, mode) {
     // 调用各个子系统，传入当前模式
     defenseManager.run(room, mode);
     constructionManager.run(room);
     towerManager.run(room, mode);
     creepManager.run(room, mode);
-    
+
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);
   },
-  
+
   /**
    * 管理生产单位
    * @param {Room} room - 要管理的房间
    * @param {string} mode - 运行模式
    */
-  manageSpawns: function(room, mode) {
+  manageSpawns: function (room, mode) {
     // 根据当前模式调整生产优先级
     const priorities = this.getPriorityByMode(room, mode);
-    
+
     // 将优先级信息传递给生产管理器
     if (priorities) {
       room.memory.spawnPriorities = priorities;
     }
-    
+
     // 调用生产管理器
     spawnManager.run(room);
   },
-  
+
   /**
    * 根据模式获取生产优先级
    * @param {Room} room - 房间对象
    * @param {string} mode - 运行模式
    * @returns {Object} 优先级配置
    */
-  getPriorityByMode: function(room, mode) {
+  getPriorityByMode: function (room, mode) {
     // 根据不同模式返回不同的优先级配置
-    switch(mode) {
+    switch (mode) {
       case 'emergency':
         return {
           harvester: 3,
@@ -2033,32 +2095,32 @@ const roomManager$1 = {
         };
     }
   },
-  
+
   /**
    * 不同模式的策略定义
    */
   strategies: {
     // 正常模式策略
     normal: {
-      execute: function(room) {
+      execute: function (room) {
         console.log(`房间 ${room.name} 正在执行正常模式管理`);
         // 平衡发展策略
         // 确保基础设施完善
         room.memory.buildPriority = ['extension', 'container', 'storage', 'tower'];
       }
     },
-    
+
     // 紧急模式策略
     emergency: {
-      execute: function(room) {
+      execute: function (room) {
         console.log(`房间 ${room.name} 正在执行紧急模式管理`);
         // 专注于防御和基本资源收集
         // 暂停非必要建筑
         room.memory.buildPriority = ['tower', 'extension'];
-        
+
         // 在紧急模式下，可以考虑关闭一些非必要的系统
         room.memory.pauseUpgrade = true;
-        
+
         // 如果有存储，从存储中提取能量到扩展和生产单位
         const storage = room.storage;
         if (storage && storage.store[RESOURCE_ENERGY] > 1000) {
@@ -2067,15 +2129,15 @@ const roomManager$1 = {
         }
       }
     },
-    
+
     // 扩张模式策略
     expansion: {
-      execute: function(room) {
+      execute: function (room) {
         console.log(`房间 ${room.name} 正在执行扩张模式管理`);
-        
+
         // 调整建造优先级
         room.memory.buildPriority = ['extension', 'container', 'storage', 'tower', 'link'];
-        
+
         // 确保有足够的能量储备
         const energyFullness = room.energyAvailable / room.energyCapacityAvailable;
         if (energyFullness < 0.7) {
@@ -2084,7 +2146,7 @@ const roomManager$1 = {
         } else {
           room.memory.pauseExpansion = false;
         }
-        
+
         // 检查是否有足够的 creep
         const creepCount = room.find(FIND_MY_CREEPS).length;
         if (creepCount < 8) {
