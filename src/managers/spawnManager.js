@@ -22,8 +22,8 @@ module.exports = {
                 (s.structureType !== STRUCTURE_WALL || s.hits < 10000) &&
                 (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
         }).length > 0 ? 2 : 1;
-        // 每个能量源分配一个矿工
-        const desiredMiners = room.controller.level >= 2 ? room.find(FIND_SOURCES).length : 0;
+        
+        const desiredMiners = room.controller.level >= 2 ? 3 : 0;
 
         // 检查是否有掉落资源或墓碑来决定是否需要收集者
         const droppedResources = room.find(FIND_DROPPED_RESOURCES);
