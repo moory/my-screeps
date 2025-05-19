@@ -226,7 +226,7 @@ module.exports = {
         // 生成优先级
         const spawnPriority = [
             // 优先生成防御者
-            { condition: hostiles.length > 0 && defenders.length < 2, role: 'defender' },
+            { condition: creep.room.memory.underAttack && defenders.length < 2, role: 'defender' },
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
