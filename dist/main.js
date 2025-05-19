@@ -8,6 +8,31 @@ var main = {};
 
 var role_harvester = {
     run(creep) {
+        // 检查房间是否处于攻击状态
+        if (creep.room.memory.underAttack) {
+            // 寻找最近的塔来提供能量
+            const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+                filter: s => s.structureType === STRUCTURE_TOWER && 
+                           s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            });
+            
+            // 如果有塔并且背包有能量，优先给塔充能
+            if (tower && creep.store[RESOURCE_ENERGY] > 0) {
+                if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                    creep.moveTo(tower, {visualizePathStyle: {stroke: '#ff0000'}});
+                }
+                return;
+            }
+            
+            // 如果没有塔或没有能量，撤退到最近的出生点
+            const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+            if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+                creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
+                creep.say('🚨 撤退!');
+                return;
+            }
+        }
+        
         // 自动清理无效内存
         if (!creep.memory.sourceId || !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
@@ -121,6 +146,46 @@ var role_harvester = {
 
 var role_builder = {
   run(creep) {
+    // 检查房间是否处于攻击状态
+    if (creep.room.memory.underAttack) {
+      // 如果有能量，优先修复防御建筑
+      if (creep.store[RESOURCE_ENERGY] > 0) {
+        // 优先修复防御塔
+        const damagedTower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+          filter: s => s.structureType === STRUCTURE_TOWER && s.hits < s.hitsMax
+        });
+
+        if (damagedTower) {
+          if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
+          }
+          return;
+        }
+
+        // 其次修复墙和城墙
+        const barrier = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+          filter: s => (s.structureType === STRUCTURE_WALL ||
+            s.structureType === STRUCTURE_RAMPART) &&
+            s.hits < 10000
+        });
+
+        if (barrier) {
+          if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
+          }
+          return;
+        }
+      }
+
+      // 如果没有能量或没有需要修复的建筑，撤退到出生点
+      const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+      if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
+        return;
+      }
+    }
+
     // 如果目前不在W27N45就前往
     // if (creep.room.name !== 'W27N45') {
     //   const targetRoom = new RoomPosition(27, 45, 'W27N45');
@@ -142,14 +207,14 @@ var role_builder = {
       const target = creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
       if (target) {
         if (creep.build(target) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}});
+          creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
         }
       } else {
         // 如果没有工地，默认去升级控制器，避免浪费
         const controller = creep.room.controller;
         if (controller) {
           if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(controller, {visualizePathStyle: {stroke: '#ffffff'}});
+            creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
           }
         }
       }
@@ -160,35 +225,35 @@ var role_builder = {
       const droppedEnergy = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
         filter: resource => resource.resourceType === RESOURCE_ENERGY
       });
-      
+
       if (droppedEnergy && droppedEnergy.amount > 50) {
         if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(droppedEnergy, {visualizePathStyle: {stroke: '#ffaa00'}});
+          creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
           return;
         }
       }
-      
+
       // 优先从存储设施获取能量（新增Storage优先级）
       const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
         filter: structure => {
-          return (structure.structureType === STRUCTURE_STORAGE || 
-                  structure.structureType === STRUCTURE_CONTAINER) && 
-                  structure.store[RESOURCE_ENERGY] > creep.store.getFreeCapacity();
+          return (structure.structureType === STRUCTURE_STORAGE ||
+            structure.structureType === STRUCTURE_CONTAINER) &&
+            structure.store[RESOURCE_ENERGY] > creep.store.getFreeCapacity();
         }
       });
-      
+
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(container, {visualizePathStyle: {stroke: '#ffaa00'}});
+          creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
           return;
         }
       }
-      
+
       // 最后从能量源直接采集
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(source, {visualizePathStyle: {stroke: '#ffaa00'}});
+          creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
         }
       }
     }
@@ -197,6 +262,17 @@ var role_builder = {
 
 var role_upgrader = {
   run(creep) {
+    // 检查房间是否处于攻击状态
+    if (creep.room.memory.underAttack) {
+      // 在受到攻击时，升级者应该撤退到安全区域
+      const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+      if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
+        return;
+      }
+    }
+
     // 设置工作状态
     if (creep.memory.upgrading && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.upgrading = false;
@@ -223,14 +299,14 @@ var role_upgrader = {
     else {
       // 优先从容器或存储中获取能量
       const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-        filter: s => (s.structureType === STRUCTURE_CONTAINER || 
-                      s.structureType === STRUCTURE_STORAGE) && 
-                     s.store[RESOURCE_ENERGY] > 0
+        filter: s => (s.structureType === STRUCTURE_CONTAINER ||
+          s.structureType === STRUCTURE_STORAGE) &&
+          s.store[RESOURCE_ENERGY] > 0
       });
-      
+
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(container, { 
+          creep.moveTo(container, {
             visualizePathStyle: { stroke: '#ffaa00' },
             reusePath: 3
           });
@@ -240,10 +316,10 @@ var role_upgrader = {
         const droppedEnergy = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
           filter: resource => resource.resourceType === RESOURCE_ENERGY && resource.amount > 50
         });
-        
+
         if (droppedEnergy) {
           if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(droppedEnergy, { 
+            creep.moveTo(droppedEnergy, {
               visualizePathStyle: { stroke: '#ffaa00' },
               reusePath: 3
             });
@@ -253,7 +329,7 @@ var role_upgrader = {
           const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
           if (source) {
             if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-              creep.moveTo(source, { 
+              creep.moveTo(source, {
                 visualizePathStyle: { stroke: '#ffaa00' },
                 reusePath: 3
               });
@@ -262,14 +338,14 @@ var role_upgrader = {
         }
       }
     }
-    
+
     // 添加卡住检测
-    if (creep.memory.lastPos && 
-        creep.memory.lastPos.x === creep.pos.x && 
-        creep.memory.lastPos.y === creep.pos.y) {
-      
+    if (creep.memory.lastPos &&
+      creep.memory.lastPos.x === creep.pos.x &&
+      creep.memory.lastPos.y === creep.pos.y) {
+
       creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
-      
+
       // 如果卡住超过10个tick，尝试随机移动解除卡住状态
       if (creep.memory.stuckCount > 10) {
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
@@ -283,8 +359,40 @@ var role_upgrader = {
   }
 };
 
-var roleRepairer$1 = {
+var role_repairer = {
     run(creep) {
+        // 检查房间是否处于攻击状态
+        if (creep.room.memory.underAttack) {
+            // 如果有能量，优先修复防御建筑
+            if (creep.store[RESOURCE_ENERGY] > 0) {
+                // 优先修复防御塔
+                const damagedTower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+                    filter: s => s.structureType === STRUCTURE_TOWER && s.hits < s.hitsMax
+                });
+
+                if (damagedTower) {
+                    if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
+                        creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
+                    }
+                    return;
+                }
+
+                // 其次修复墙和城墙
+                const barrier = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                    filter: s => (s.structureType === STRUCTURE_WALL ||
+                        s.structureType === STRUCTURE_RAMPART) &&
+                        s.hits < 10000
+                });
+
+                if (barrier) {
+                    if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
+                        creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
+                    }
+                    return;
+                }
+            }
+        }
+
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
@@ -300,26 +408,26 @@ var roleRepairer$1 = {
             // 按优先级查找需要修理的建筑
             // 1. 首先修理重要基础设施（容器、道路）
             let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                filter: s => (s.structureType === STRUCTURE_CONTAINER || 
-                              s.structureType === STRUCTURE_ROAD) &&
-                             s.hits < s.hitsMax * 0.5  // 低于50%生命值优先修理
+                filter: s => (s.structureType === STRUCTURE_CONTAINER ||
+                    s.structureType === STRUCTURE_ROAD) &&
+                    s.hits < s.hitsMax * 0.5  // 低于50%生命值优先修理
             });
-            
+
             // 2. 其次修理一般建筑
             if (!target) {
                 target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                    filter: s => s.hits < s.hitsMax && 
-                                 s.structureType !== STRUCTURE_WALL && 
-                                 s.structureType !== STRUCTURE_RAMPART
+                    filter: s => s.hits < s.hitsMax &&
+                        s.structureType !== STRUCTURE_WALL &&
+                        s.structureType !== STRUCTURE_RAMPART
                 });
             }
-            
+
             // 3. 最后修理防御建筑，但有上限
             if (!target) {
                 target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                    filter: s => (s.structureType === STRUCTURE_WALL || 
-                                  s.structureType === STRUCTURE_RAMPART) && 
-                                 s.hits < 10000  // 防御建筑修理上限提高到10000
+                    filter: s => (s.structureType === STRUCTURE_WALL ||
+                        s.structureType === STRUCTURE_RAMPART) &&
+                        s.hits < 10000  // 防御建筑修理上限提高到10000
                 });
             }
 
@@ -340,11 +448,11 @@ var roleRepairer$1 = {
             // 采集能量模式 - 优化能量获取方式
             // 优先从容器或存储中获取能量
             const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                filter: s => (s.structureType === STRUCTURE_CONTAINER || 
-                              s.structureType === STRUCTURE_STORAGE) && 
-                             s.store[RESOURCE_ENERGY] > 0
+                filter: s => (s.structureType === STRUCTURE_CONTAINER ||
+                    s.structureType === STRUCTURE_STORAGE) &&
+                    s.store[RESOURCE_ENERGY] > 0
             });
-            
+
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
                     creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
@@ -354,7 +462,7 @@ var roleRepairer$1 = {
                 const droppedEnergy = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
                     filter: resource => resource.resourceType === RESOURCE_ENERGY && resource.amount > 50
                 });
-                
+
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
                         creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
@@ -370,19 +478,30 @@ var roleRepairer$1 = {
                 }
             }
         }
-    },
+    }
 };
-
-var role_repairer = roleRepairer$1;
 
 var role_miner = {
     run(creep) {
+        // 检查房间是否处于攻击状态
+        if (creep.room.memory.underAttack) {
+            // 矿工在受到攻击时应该继续工作，但如果生命值低于50%则撤退
+            if (creep.hits < creep.hitsMax * 0.5) {
+                const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+                if (spawn) {
+                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+                    creep.say('🚨 受伤撤退!');
+                    return;
+                }
+            }
+        }
+
         // 自动清理无效内存
         if (!creep.memory.sourceId || !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
         }
-        
+
         // 检查容器是否还存在，如果不存在则清除容器ID
         if (creep.memory.containerId && !Game.getObjectById(creep.memory.containerId)) {
             delete creep.memory.containerId;
@@ -393,32 +512,32 @@ var role_miner = {
             const sources = creep.room.find(FIND_SOURCES);
             // 找到当前分配矿工最少的能量源
             const sourceAssignments = {};
-            
+
             // 初始化每个能量源的矿工数量为0
             for (const source of sources) {
                 sourceAssignments[source.id] = 0;
             }
-            
+
             // 统计每个能量源的矿工数量
             for (const name in Game.creeps) {
                 const otherCreep = Game.creeps[name];
                 if (otherCreep.memory.role === 'miner' && otherCreep.memory.sourceId) {
-                    sourceAssignments[otherCreep.memory.sourceId] = 
+                    sourceAssignments[otherCreep.memory.sourceId] =
                         (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
                 }
             }
-            
+
             // 找到分配矿工最少的能量源
             let minAssignedSource = null;
             let minAssignedCount = Infinity;
-            
+
             for (const sourceId in sourceAssignments) {
                 if (sourceAssignments[sourceId] < minAssignedCount) {
                     minAssignedCount = sourceAssignments[sourceId];
                     minAssignedSource = sourceId;
                 }
             }
-            
+
             // 只有当矿工数量为0时才分配新矿工到这个能源
             if (minAssignedSource && minAssignedCount === 0) {
                 creep.memory.sourceId = minAssignedSource;
@@ -434,8 +553,8 @@ var role_miner = {
                 let replacementFound = false;
                 for (const name in Game.creeps) {
                     const otherCreep = Game.creeps[name];
-                    if (otherCreep.memory.role === 'miner' && 
-                        otherCreep.memory.sourceId && 
+                    if (otherCreep.memory.role === 'miner' &&
+                        otherCreep.memory.sourceId &&
                         otherCreep.ticksToLive < 150) { // 如果矿工剩余寿命不足150tick
                         creep.memory.sourceId = otherCreep.memory.sourceId;
                         creep.memory.replacingMiner = otherCreep.name;
@@ -450,7 +569,7 @@ var role_miner = {
                         break;
                     }
                 }
-                
+
                 // 如果没有找到需要替换的矿工，则选择矿工最少的能源
                 if (!replacementFound) {
                     creep.memory.sourceId = minAssignedSource;
@@ -472,32 +591,32 @@ var role_miner = {
         }
 
         const source = Game.getObjectById(creep.memory.sourceId);
-        
+
         // 寻找附近的容器
         if (!creep.memory.containerId) {
             // 检查是否有其他矿工已经绑定了这个能源附近的容器
             let containerAlreadyAssigned = false;
             let nearestContainer = null;
-            
+
             // 查找附近的容器
             const containers = creep.pos.findInRange(FIND_STRUCTURES, 3, {
                 filter: s => s.structureType === STRUCTURE_CONTAINER
             });
-            
+
             if (containers.length > 0) {
                 nearestContainer = containers[0];
-                
+
                 // 检查这个容器是否已被其他矿工绑定
                 for (const name in Game.creeps) {
                     const otherCreep = Game.creeps[name];
-                    if (otherCreep.id !== creep.id && 
-                        otherCreep.memory.role === 'miner' && 
+                    if (otherCreep.id !== creep.id &&
+                        otherCreep.memory.role === 'miner' &&
                         otherCreep.memory.containerId === nearestContainer.id) {
                         containerAlreadyAssigned = true;
                         break;
                     }
                 }
-                
+
                 // 如果容器未被绑定，则绑定它
                 if (!containerAlreadyAssigned) {
                     creep.memory.containerId = nearestContainer.id;
@@ -505,9 +624,9 @@ var role_miner = {
                 }
             }
         }
-        
+
         const container = creep.memory.containerId ? Game.getObjectById(creep.memory.containerId) : null;
-        
+
         // 如果有容器，站在容器上挖矿
         if (container) {
             if (!creep.pos.isEqualTo(container.pos)) {
@@ -535,7 +654,7 @@ var role_miner = {
                         creep.memory.cachedPath = path;
                         creep.memory.pathUpdateTime = Game.time;
                     }
-                    
+
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
@@ -555,16 +674,16 @@ var role_miner = {
                         });
                     }
                 }
-                
+
                 // 如果背包满了，尝试将能量放入附近的容器或存储
                 if (creep.store.getFreeCapacity() === 0) {
                     const container = creep.pos.findClosestByRange(FIND_STRUCTURES, {
-                        filter: s => 
-                            (s.structureType === STRUCTURE_CONTAINER || 
-                             s.structureType === STRUCTURE_STORAGE) &&
+                        filter: s =>
+                            (s.structureType === STRUCTURE_CONTAINER ||
+                                s.structureType === STRUCTURE_STORAGE) &&
                             s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
                     });
-                    
+
                     if (container) {
                         if (creep.transfer(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
                             creep.moveTo(container, {
@@ -576,7 +695,7 @@ var role_miner = {
                         const constructionSites = creep.pos.findInRange(FIND_CONSTRUCTION_SITES, 3, {
                             filter: site => site.structureType === STRUCTURE_CONTAINER
                         });
-                        
+
                         if (constructionSites.length > 0) {
                             if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) {
                                 creep.moveTo(constructionSites[0]);
@@ -591,60 +710,95 @@ var role_miner = {
                     }
                 }
             }
-        }
-        
-        // 添加卡住检测
-        if (creep.memory.lastPos && 
-            creep.memory.lastPos.x === creep.pos.x && 
-            creep.memory.lastPos.y === creep.pos.y && 
-            creep.memory.stuckCount) {
-            
-            creep.memory.stuckCount++;
-            
-            // 如果卡住超过10个tick，重新计算路径
-            if (creep.memory.stuckCount > 10) {
-                delete creep.memory.cachedPath;
-                creep.memory.stuckCount = 0;
-                // 随机移动一下尝试解除卡住状态
-                const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
-                creep.move(directions[Math.floor(Math.random() * directions.length)]);
+
+            // 添加卡住检测
+            if (creep.memory.lastPos &&
+                creep.memory.lastPos.x === creep.pos.x &&
+                creep.memory.lastPos.y === creep.pos.y &&
+                creep.memory.stuckCount) {
+
+                creep.memory.stuckCount++;
+
+                // 如果卡住超过10个tick，重新计算路径
+                if (creep.memory.stuckCount > 10) {
+                    delete creep.memory.cachedPath;
+                    creep.memory.stuckCount = 0;
+                    // 随机移动一下尝试解除卡住状态
+                    const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
+                    creep.move(directions[Math.floor(Math.random() * directions.length)]);
+                }
+            } else {
+                creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
+                creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
             }
-        } else {
-            creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
-            creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
         }
     }
 };
 
 var role_collector = {
   run(creep) {
+    // 检查房间是否处于攻击状态
+    if (creep.room.memory.underAttack) {
+      // 如果背包有能量，优先给塔充能
+      if (creep.store[RESOURCE_ENERGY] > 0) {
+        const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+          filter: s => s.structureType === STRUCTURE_TOWER &&
+            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+
+        if (tower) {
+          if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+            creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
+          }
+          return;
+        }
+      }
+
+      // 如果没有塔需要能量，收集掉落的资源（可能是被摧毁的建筑或creep掉落的）
+      const droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
+      if (droppedResource) {
+        if (creep.pickup(droppedResource) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(droppedResource, { visualizePathStyle: { stroke: '#ff0000' } });
+        }
+        return;
+      }
+
+      // 如果没有掉落资源，撤退到出生点
+      const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+      if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
+        return;
+      }
+    }
+
     // 如果背包已满，将资源运送到存储设施
     if (creep.store.getFreeCapacity() === 0) {
       // 优先存放到Storage
       let target = creep.room.storage;
-      
+
       // 如果没有Storage，则寻找Container
       if (!target) {
         target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: s => s.structureType === STRUCTURE_CONTAINER &&
-                      s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
       }
-      
+
       // 如果没有存储设施，则将能量送到Spawn或Extension
       if (!target) {
         target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: s => (s.structureType === STRUCTURE_EXTENSION ||
-                      s.structureType === STRUCTURE_SPAWN) &&
-                      s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            s.structureType === STRUCTURE_SPAWN) &&
+            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
       }
-      
+
       if (target) {
         // 遍历背包中的所有资源类型并转移
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}});
+            creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
             break; // 一旦开始移动就跳出循环
           }
         }
@@ -656,16 +810,16 @@ var role_collector = {
       let droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
         filter: resource => resource.resourceType !== RESOURCE_ENERGY
       });
-      
+
       // 如果没有找到非能量资源，再寻找掉落的能量
       if (!droppedResource) {
         droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
       }
-      
+
       // 如果找到了掉落资源，拾取它
       if (droppedResource) {
         if (creep.pickup(droppedResource) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(droppedResource, {visualizePathStyle: {stroke: '#ffaa00'}});
+          creep.moveTo(droppedResource, { visualizePathStyle: { stroke: '#ffaa00' } });
         }
         creep.say('🧹 收集');
       } else {
@@ -673,12 +827,12 @@ var role_collector = {
         const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
           filter: tomb => tomb.store.getUsedCapacity() > 0
         });
-        
+
         if (tombstone) {
           // 从墓碑中提取第一种可用资源
           for (const resourceType in tombstone.store) {
             if (creep.withdraw(tombstone, resourceType) === ERR_NOT_IN_RANGE) {
-              creep.moveTo(tombstone, {visualizePathStyle: {stroke: '#ffaa00'}});
+              creep.moveTo(tombstone, { visualizePathStyle: { stroke: '#ffaa00' } });
               break; // 一旦开始移动就跳出循环
             }
           }
@@ -688,12 +842,12 @@ var role_collector = {
           const ruin = creep.pos.findClosestByPath(FIND_RUINS, {
             filter: r => r.store.getUsedCapacity() > 0
           });
-          
+
           if (ruin) {
             // 从废墟中提取第一种可用资源
             for (const resourceType in ruin.store) {
               if (creep.withdraw(ruin, resourceType) === ERR_NOT_IN_RANGE) {
-                creep.moveTo(ruin, {visualizePathStyle: {stroke: '#ffaa00'}});
+                creep.moveTo(ruin, { visualizePathStyle: { stroke: '#ffaa00' } });
                 break; // 一旦开始移动就跳出循环
               }
             }
@@ -701,7 +855,7 @@ var role_collector = {
           } else {
             // 如果什么都没找到，就待在房间中央或控制器附近
             creep.moveTo(new RoomPosition(25, 25, creep.room.name), {
-              visualizePathStyle: {stroke: '#ffaa00'},
+              visualizePathStyle: { stroke: '#ffaa00' },
               range: 5
             });
           }

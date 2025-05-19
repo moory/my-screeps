@@ -1,5 +1,30 @@
 module.exports = {
     run(creep) {
+        // 检查房间是否处于攻击状态
+        if (creep.room.memory.underAttack) {
+            // 寻找最近的塔来提供能量
+            const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+                filter: s => s.structureType === STRUCTURE_TOWER && 
+                           s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            });
+            
+            // 如果有塔并且背包有能量，优先给塔充能
+            if (tower && creep.store[RESOURCE_ENERGY] > 0) {
+                if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                    creep.moveTo(tower, {visualizePathStyle: {stroke: '#ff0000'}});
+                }
+                return;
+            }
+            
+            // 如果没有塔或没有能量，撤退到最近的出生点
+            const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+            if (spawn && creep.pos.getRangeTo(spawn) > 3) {
+                creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
+                creep.say('🚨 撤退!');
+                return;
+            }
+        }
+        
         // 自动清理无效内存
         if (!creep.memory.sourceId || !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
