@@ -1166,6 +1166,12 @@ var spawnManager$1 = {
                 pattern: [WORK, CARRY, MOVE],
                 maxPatternRepeats: 3
             },
+            // 防御者：专注于战斗，增加ATTACK和TOUGH部件
+            defender: {
+                base: [TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE],
+                pattern: [ATTACK, MOVE],
+                maxPatternRepeats: 3
+            },
         };
 
         // 根据可用能量生成最优身体部件
@@ -1183,6 +1189,10 @@ var spawnManager$1 = {
                 template = bodyTemplates.repairer;
             } else if (role === 'upgrader' && bodyTemplates.upgrader) {
                 template = bodyTemplates.upgrader;
+            } else if (role === 'builder' && bodyTemplates.worker) {
+                template = bodyTemplates.worker;
+            } else if (role === 'defender' && bodyTemplates.defender) {
+                template = bodyTemplates.defender;
             } else {
                 template = bodyTemplates.worker;
             }
@@ -1312,6 +1322,8 @@ var spawnManager$1 = {
 
         // 生成优先级
         const spawnPriority = [
+            // 优先生成防御者
+            { condition: hostiles.length > 0 && defenders.length < 2, role: 'defender' },
             { condition: harvesters.length < baseHarvesters, role: 'harvester' },
             { condition: upgraders.length < 2, role: 'upgrader' },
             { condition: builders.length < desiredBuilders, role: 'builder' },
@@ -1322,7 +1334,7 @@ var spawnManager$1 = {
 
         // 添加调试信息
         console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
-        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}`);
+        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}, 防御者=${defenders.length}/${desiredDefenders} `);
 
         // 尝试按优先级生成creep
         let spawnAttempted = false;
