@@ -42,14 +42,21 @@ module.exports = {
 
     // 🎒 满载状态 -> 投递资源
     if (creep.store.getFreeCapacity() === 0) {
-      let target = creep.room.storage;
+      const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+        filter: s => s.structureType === STRUCTURE_CONTAINER &&
+          s.store.getUsedCapacity() > 0
+      });
 
-      if (!target) {
-        target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-          filter: s => s.structureType === STRUCTURE_CONTAINER &&
-            s.store.getFreeCapacity() > 0
-        });
+      if (container) {
+        for (const res in container.store) {
+          if (container.store[res] > 0) {
+            withdrawOrMove(container, res, '📦 收集');
+            return;
+          }
+        }
       }
+
+      let target = creep.room.storage;
 
       if (!target) {
         target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
@@ -104,34 +111,6 @@ module.exports = {
         if (ruin.store[res] > 0) {
           withdrawOrMove(ruin, res, '🏚️ 收集');
           return;
-        }
-      }
-    }
-
-    // 🔁 从 Container 搬运资源到附近的 Link
-    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_CONTAINER &&
-        s.store[RESOURCE_ENERGY] > 0
-    });
-
-    if (container) {
-      const link = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-        filter: s => s.structureType === STRUCTURE_LINK &&
-          s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-      });
-
-      // 如果 creep 背包是空的，先去拿能量
-      if (creep.store.getFreeCapacity() > 0) {
-        if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
-          creep.say('📦 拿能量');
-        }
-      }
-      // 如果身上有能量并且有目标 Link，运过去
-      else if (creep.store[RESOURCE_ENERGY] > 0 && link) {
-        if (creep.transfer(link, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(link, { visualizePathStyle: { stroke: '#aaffaa' } });
-          creep.say('📤 投Link');
         }
       }
     }
