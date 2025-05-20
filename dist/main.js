@@ -786,15 +786,27 @@ var role_miner = {
 
 var role_collector = {
   run(creep) {
-    // 检查房间是否处于攻击状态
+    const withdrawOrMove = (target, resourceType, say) => {
+      if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
+      }
+      if (say) creep.say(say);
+    };
+
+    const pickupOrMove = (resource, say) => {
+      if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
+      }
+      if (say) creep.say(say);
+    };
+
+    // 🚨 战时策略：优先支援塔、防止浪费资源
     if (creep.room.memory.underAttack) {
-      // 如果背包有能量，优先给塔充能
       if (creep.store[RESOURCE_ENERGY] > 0) {
         const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
           filter: s => s.structureType === STRUCTURE_TOWER &&
             s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
-
         if (tower) {
           if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
             creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
@@ -803,16 +815,9 @@ var role_collector = {
         }
       }
 
-      // 如果没有塔需要能量，收集掉落的资源（可能是被摧毁的建筑或creep掉落的）
-      const droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
-      if (droppedResource) {
-        if (creep.pickup(droppedResource) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(droppedResource, { visualizePathStyle: { stroke: '#ff0000' } });
-        }
-        return;
-      }
+      const dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
+      if (dropped) return pickupOrMove(dropped);
 
-      // 如果没有掉落资源，撤退到出生点
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
@@ -821,20 +826,17 @@ var role_collector = {
       }
     }
 
-    // 如果背包已满，将资源运送到存储设施
+    // 🎒 满载状态 -> 投递资源
     if (creep.store.getFreeCapacity() === 0) {
-      // 优先存放到Storage
       let target = creep.room.storage;
 
-      // 如果没有Storage，则寻找Container
       if (!target) {
         target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: s => s.structureType === STRUCTURE_CONTAINER &&
-            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            s.store.getFreeCapacity() > 0
         });
       }
 
-      // 如果没有存储设施，则将能量送到Spawn或Extension
       if (!target) {
         target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: s => (s.structureType === STRUCTURE_EXTENSION ||
@@ -844,110 +846,78 @@ var role_collector = {
       }
 
       if (target) {
-        // 遍历背包中的所有资源类型并转移
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
             creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
-            break; // 一旦开始移动就跳出循环
+            break;
           }
+        }
+      }
+      return;
+    }
+
+    // 📦 背包未满 -> 搜集资源
+    // 优先非能量
+    let dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
+      filter: r => r.resourceType !== RESOURCE_ENERGY
+    });
+
+    if (!dropped) {
+      dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
+    }
+
+    if (dropped) return pickupOrMove(dropped, '🧹 收集');
+
+    const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
+      filter: t => t.store && t.store.getUsedCapacity() > 0
+    });
+
+    if (tombstone) {
+      for (const res in tombstone.store) {
+        if (tombstone.store[res] > 0) {
+          withdrawOrMove(tombstone, res, '💀 收集');
+          return;
         }
       }
     }
-    // 如果背包未满，寻找掉落资源
-    else {
-      // 优先寻找非能量资源（可能是Invader掉落的矿物）
-      let droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
-        filter: resource => resource.resourceType !== RESOURCE_ENERGY
+
+    const ruin = creep.pos.findClosestByPath(FIND_RUINS, {
+      filter: r => r.store && r.store.getUsedCapacity() > 0
+    });
+
+    if (ruin) {
+      for (const res in ruin.store) {
+        if (ruin.store[res] > 0) {
+          withdrawOrMove(ruin, res, '🏚️ 收集');
+          return;
+        }
+      }
+    }
+
+    // 🔁 从 Container 搬运资源到附近的 Link
+    const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_CONTAINER &&
+        s.store[RESOURCE_ENERGY] > 0
+    });
+
+    if (container) {
+      const link = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+        filter: s => s.structureType === STRUCTURE_LINK &&
+          s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
       });
 
-      // 如果没有找到非能量资源，再寻找掉落的能量
-      if (!droppedResource) {
-        droppedResource = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
-      }
-
-      // 如果找到了掉落资源，拾取它
-      if (droppedResource) {
-        if (creep.pickup(droppedResource) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(droppedResource, { visualizePathStyle: { stroke: '#ffaa00' } });
+      // 如果 creep 背包是空的，先去拿能量
+      if (creep.store.getFreeCapacity() > 0) {
+        if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
+          creep.say('📦 拿能量');
         }
-        creep.say('🧹 收集');
-      } else {
-        // 如果没有掉落资源，寻找墓碑并获取其中的资源
-        const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
-          filter: tomb => tomb.store.getUsedCapacity() > 0
-        });
-
-        if (tombstone) {
-          // 从墓碑中提取第一种可用资源
-          for (const resourceType in tombstone.store) {
-            if (creep.withdraw(tombstone, resourceType) === ERR_NOT_IN_RANGE) {
-              creep.moveTo(tombstone, { visualizePathStyle: { stroke: '#ffaa00' } });
-              break; // 一旦开始移动就跳出循环
-            }
-          }
-          creep.say('💀 收集');
-        } else {
-          // 如果没有掉落资源和墓碑，寻找废墟
-          const ruin = creep.pos.findClosestByPath(FIND_RUINS, {
-            filter: r => r.store.getUsedCapacity() > 0
-          });
-
-          if (ruin) {
-            // 从废墟中提取第一种可用资源
-            for (const resourceType in ruin.store) {
-              if (creep.withdraw(ruin, resourceType) === ERR_NOT_IN_RANGE) {
-                creep.moveTo(ruin, { visualizePathStyle: { stroke: '#ffaa00' } });
-                break; // 一旦开始移动就跳出循环
-              }
-            }
-            creep.say('🏚️ 收集');
-          } else {
-            // 如果什么都没找到，就去把Container中的资源搬运到Extension中或Storage中
-            // 检查是否有需要能量的Extension或Spawn
-            const needsEnergy = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-              filter: s => (s.structureType === STRUCTURE_EXTENSION ||
-                s.structureType === STRUCTURE_SPAWN) &&
-                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-            });
-            
-            // 搬运后立即检查背包容量
-            if (creep.store.getFreeCapacity() === 0) {
-              creep.memory.working = true;
-              return;
-            }
-            
-            // 寻找有资源的Container
-            const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-              filter: s => s.structureType === STRUCTURE_CONTAINER &&
-                s.store.getUsedCapacity() > 0
-            });
-            
-            if (container) {
-              // 如果有需要能量的建筑且Container中有能量，优先提取能量
-              if (needsEnergy && container.store[RESOURCE_ENERGY] > 0) {
-                if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                  creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
-                  creep.say('📦 取能量');
-                }
-              } 
-              // 否则提取Container中的任意资源
-              else {
-                for (const resourceType in container.store) {
-                  if (container.store[resourceType] > 0) {
-                    const result = creep.withdraw(container, resourceType);
-                    if (result === ERR_NOT_IN_RANGE) {
-                      creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
-                      creep.say('📦 搬运');
-                      break;
-                    } else if (result === OK) {
-                      // 提取成功后立即返回，防止重复操作
-                      return;
-                    }
-                  }
-                }
-              }
-            }
-          }
+      }
+      // 如果身上有能量并且有目标 Link，运过去
+      else if (creep.store[RESOURCE_ENERGY] > 0 && link) {
+        if (creep.transfer(link, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(link, { visualizePathStyle: { stroke: '#aaffaa' } });
+          creep.say('📤 投Link');
         }
       }
     }
