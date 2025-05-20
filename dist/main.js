@@ -828,19 +828,6 @@ var role_collector = {
 
     // 🎒 满载状态 -> 投递资源
     if (creep.store.getFreeCapacity() === 0) {
-      const container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-        filter: s => s.structureType === STRUCTURE_CONTAINER &&
-          s.store.getUsedCapacity() > 0
-      });
-
-      if (container) {
-        for (const res in container.store) {
-          if (container.store[res] > 0) {
-            withdrawOrMove(container, res, '📦 收集');
-            return;
-          }
-        }
-      }
 
       let target = creep.room.storage;
 
