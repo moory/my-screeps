@@ -586,7 +586,7 @@ var role_repairer = {
 
                 if (damagedTower) {
                     if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
+                        creep.moveTo(damagedTower);
                     }
                     return;
                 }
@@ -600,7 +600,7 @@ var role_repairer = {
 
                 if (barrier) {
                     if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
+                        creep.moveTo(barrier);
                     }
                     return;
                 }
@@ -645,14 +645,14 @@ var role_repairer = {
 
             if (target) {
                 if (creep.repair(target) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(target, { visualizePathStyle: { stroke: '#ff00ff' } });
+                    creep.moveTo(target);
                 }
             } else {
                 // 没有修理目标时，转为升级控制器
                 const controller = creep.room.controller;
                 if (controller) {
                     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
+                        creep.moveTo(controller);
                     }
                 }
             }
@@ -667,7 +667,7 @@ var role_repairer = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
+                    creep.moveTo(container);
                 }
             } else {
                 // 其次捡取掉落的能量
@@ -677,14 +677,14 @@ var role_repairer = {
 
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
+                        creep.moveTo(droppedEnergy);
                     }
                 } else {
                     // 最后从能量源直接采集
                     const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
                     if (source) {
                         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
+                            creep.moveTo(source);
                         }
                     }
                 }
@@ -701,7 +701,7 @@ var role_miner = {
             if (creep.hits < creep.hitsMax * 0.5) {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
-                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+                    creep.moveTo(spawn);
                     return;
                 }
             }
@@ -842,7 +842,6 @@ var role_miner = {
         if (container) {
             if (!creep.pos.isEqualTo(container.pos)) {
                 creep.moveTo(container, {
-                    visualizePathStyle: { stroke: '#ffaa00' },
                     reusePath: 5
                 });
             } else {
@@ -872,7 +871,6 @@ var role_miner = {
                         // fallback：如果 moveByPath 失败，则直接 moveTo
                         if (moveResult < 0) {
                             creep.moveTo(source, {
-                                visualizePathStyle: { stroke: '#ffaa00' },
                                 reusePath: 3
                             });
                             // 如果移动失败，重新计算路径
@@ -880,7 +878,6 @@ var role_miner = {
                         }
                     } else {
                         creep.moveTo(source, {
-                            visualizePathStyle: { stroke: '#ffaa00' },
                             reusePath: 3
                         });
                     }
@@ -897,9 +894,7 @@ var role_miner = {
 
                     if (container) {
                         if (creep.transfer(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(container, {
-                                visualizePathStyle: { stroke: '#ffffff' }
-                            });
+                            creep.moveTo(container);
                         }
                     } else {
                         // 如果找不到容器，尝试建造一个容器
@@ -950,13 +945,13 @@ var role_collector = {
   run(creep) {
     const withdrawOrMove = (target, resourceType) => {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
+        creep.moveTo(target);
       }
     };
 
     const pickupOrMove = (resource) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
+        creep.moveTo(resource);
       }
     };
 
@@ -969,7 +964,7 @@ var role_collector = {
         });
         if (tower) {
           if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
+            creep.moveTo(tower);
           }
           return;
         }
@@ -980,7 +975,7 @@ var role_collector = {
 
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.moveTo(spawn);
         return;
       }
     }
@@ -1001,7 +996,7 @@ var role_collector = {
       if (target) {
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
+            creep.moveTo(target);
             break;
           }
         }
@@ -1056,8 +1051,7 @@ var role_defender = {
             // 如果没有敌人，返回出生点附近待命
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-                creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ffffff' } });
-                creep.say('🛡️ 待命');
+                creep.moveTo(spawn);
             }
             return;
         }
@@ -1089,20 +1083,15 @@ var role_defender = {
             // 检查敌人是否在攻击范围内
             if (creep.attack(target) === ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, { 
-                    visualizePathStyle: { stroke: '#ff0000' },
                     reusePath: 3
                 });
-                creep.say('⚔️ 攻击');
-            } else {
-                creep.say('⚔️ 战斗中');
             }
             
             // 如果生命值低于50%，撤退到出生点附近
             if (creep.hits < creep.hitsMax * 0.5) {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
-                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-                    creep.say('🛡️ 撤退');
+                    creep.moveTo(spawn);
                 }
             }
         }

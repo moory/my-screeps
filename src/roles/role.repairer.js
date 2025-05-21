@@ -11,7 +11,7 @@ module.exports = {
 
                 if (damagedTower) {
                     if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
+                        creep.moveTo(damagedTower);
                     }
                     return;
                 }
@@ -25,7 +25,7 @@ module.exports = {
 
                 if (barrier) {
                     if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
+                        creep.moveTo(barrier);
                     }
                     return;
                 }
@@ -70,14 +70,14 @@ module.exports = {
 
             if (target) {
                 if (creep.repair(target) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(target, { visualizePathStyle: { stroke: '#ff00ff' } });
+                    creep.moveTo(target);
                 }
             } else {
                 // 没有修理目标时，转为升级控制器
                 const controller = creep.room.controller;
                 if (controller) {
                     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
+                        creep.moveTo(controller);
                     }
                 }
             }
@@ -92,7 +92,7 @@ module.exports = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
+                    creep.moveTo(container);
                 }
             } else {
                 // 其次捡取掉落的能量
@@ -102,14 +102,14 @@ module.exports = {
 
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
+                        creep.moveTo(droppedEnergy);
                     }
                 } else {
                     // 最后从能量源直接采集
                     const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
                     if (source) {
                         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
+                            creep.moveTo(source);
                         }
                     }
                 }

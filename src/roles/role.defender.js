@@ -5,8 +5,7 @@ module.exports = {
             // 如果没有敌人，返回出生点附近待命
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-                creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ffffff' } });
-                creep.say('🛡️ 待命');
+                creep.moveTo(spawn);
             }
             return;
         }
@@ -15,7 +14,6 @@ module.exports = {
         const hostiles = creep.room.find(FIND_HOSTILE_CREEPS);
         if (hostiles.length === 0) {
             // 没有敌人但房间仍标记为被攻击，可能是误报
-            creep.say('🛡️ 巡逻');
             return;
         }
 
@@ -38,20 +36,15 @@ module.exports = {
             // 检查敌人是否在攻击范围内
             if (creep.attack(target) === ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, { 
-                    visualizePathStyle: { stroke: '#ff0000' },
                     reusePath: 3
                 });
-                creep.say('⚔️ 攻击');
-            } else {
-                creep.say('⚔️ 战斗中');
             }
             
             // 如果生命值低于50%，撤退到出生点附近
             if (creep.hits < creep.hitsMax * 0.5) {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
-                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-                    creep.say('🛡️ 撤退');
+                    creep.moveTo(spawn);
                 }
             }
         }

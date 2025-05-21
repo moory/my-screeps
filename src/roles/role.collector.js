@@ -2,13 +2,13 @@ module.exports = {
   run(creep) {
     const withdrawOrMove = (target, resourceType) => {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
+        creep.moveTo(target);
       }
     };
 
     const pickupOrMove = (resource) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
+        creep.moveTo(resource);
       }
     };
 
@@ -21,7 +21,7 @@ module.exports = {
         });
         if (tower) {
           if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
+            creep.moveTo(tower);
           }
           return;
         }
@@ -32,7 +32,7 @@ module.exports = {
 
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.moveTo(spawn);
         return;
       }
     }
@@ -53,7 +53,7 @@ module.exports = {
       if (target) {
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
+            creep.moveTo(target);
             break;
           }
         }

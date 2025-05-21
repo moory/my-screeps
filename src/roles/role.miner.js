@@ -6,7 +6,7 @@ module.exports = {
             if (creep.hits < creep.hitsMax * 0.5) {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
-                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+                    creep.moveTo(spawn);
                     return;
                 }
             }
@@ -147,7 +147,6 @@ module.exports = {
         if (container) {
             if (!creep.pos.isEqualTo(container.pos)) {
                 creep.moveTo(container, {
-                    visualizePathStyle: { stroke: '#ffaa00' },
                     reusePath: 5
                 });
             } else {
@@ -177,7 +176,6 @@ module.exports = {
                         // fallback：如果 moveByPath 失败，则直接 moveTo
                         if (moveResult < 0) {
                             creep.moveTo(source, {
-                                visualizePathStyle: { stroke: '#ffaa00' },
                                 reusePath: 3
                             });
                             // 如果移动失败，重新计算路径
@@ -185,7 +183,6 @@ module.exports = {
                         }
                     } else {
                         creep.moveTo(source, {
-                            visualizePathStyle: { stroke: '#ffaa00' },
                             reusePath: 3
                         });
                     }
@@ -202,9 +199,7 @@ module.exports = {
 
                     if (container) {
                         if (creep.transfer(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(container, {
-                                visualizePathStyle: { stroke: '#ffffff' }
-                            });
+                            creep.moveTo(container);
                         }
                     } else {
                         // 如果找不到容器，尝试建造一个容器
