@@ -1355,44 +1355,52 @@ var spawnManager$1 = {
         // 如果有掉落资源、墓碑或废墟，则需要收集者
         const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
         
-        // 优化后的身体部件模板
+        // 优化后的身体部件模板 - 根据房间等级动态调整
         const bodyTemplates = {
-            // 采集者：增强运输能力，适合RCL4
+            // 采集者：基础配置更轻量，适合低级房间
             harvester: {
-                base: [WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                base: [WORK, CARRY, MOVE],
                 pattern: [CARRY, CARRY, MOVE],
-                maxPatternRepeats: 3
+                maxPatternRepeats: room.controller.level >= 4 ? 4 : 2
             },
-            // 工人：平衡建造和升级能力，增加WORK部件
+            // 工人：平衡建造和升级能力
             worker: {
-                base: [WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                base: [WORK, CARRY, MOVE],
                 pattern: [WORK, CARRY, MOVE],
-                maxPatternRepeats: 3
+                maxPatternRepeats: room.controller.level >= 4 ? 4 : 2
             },
-            // 修理者：增加WORK和CARRY部件，提高修理效率
+            // 修理者：基础配置更轻量
             repairer: {
-                base: [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE],
+                base: [WORK, CARRY, MOVE, MOVE],
                 pattern: [WORK, CARRY, CARRY, MOVE, MOVE],
-                maxPatternRepeats: 2
+                maxPatternRepeats: room.controller.level >= 4 ? 2 : 1
             },
-            // 矿工：专注于采集，固定5个WORK部件，增加移动速度
+            // 矿工：根据房间等级调整
             miner: {
-                base: [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE],
+                base: room.controller.level >= 4 ? 
+                    [WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE] : 
+                    [WORK, WORK, CARRY, MOVE],
                 pattern: [],
                 maxPatternRepeats: 0
             },
-            // 升级者：专注于升级控制器
+            // 升级者：基础配置更轻量
             upgrader: {
-                base: [WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE],
+                base: [WORK, CARRY, MOVE],
                 pattern: [WORK, CARRY, MOVE],
-                maxPatternRepeats: 3
+                maxPatternRepeats: room.controller.level >= 4 ? 4 : 2
             },
-            // 防御者：专注于战斗，增加ATTACK和TOUGH部件
+            // 防御者：基础配置更轻量
             defender: {
-                base: [TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE],
+                base: [TOUGH, ATTACK, MOVE, MOVE],
                 pattern: [ATTACK, MOVE],
-                maxPatternRepeats: 3
+                maxPatternRepeats: room.controller.level >= 4 ? 3 : 1
             },
+            // 收集者：新增角色，专注于收集掉落资源
+            collector: {
+                base: [CARRY, CARRY, MOVE, MOVE],
+                pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: room.controller.level >= 4 ? 3 : 1
+            }
         };
 
         // 根据可用能量生成最优身体部件
@@ -1555,7 +1563,7 @@ var spawnManager$1 = {
 
         // 添加调试信息
         console.log(`房间 ${room.name} 能量: ${room.energyAvailable}/${room.energyCapacityAvailable}`);
-        console.log(`当前 creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}, 防御者=${defenders.length}/${desiredDefenders} `);
+        console.log(`当前房间 ${room.name} creep 数量: 采集者=${harvesters.length}/${baseHarvesters}, 收集者=${collectors.length}/${desiredCollectors}, 升级者=${upgraders.length}/2, 建造者=${builders.length}/${desiredBuilders}, 修理工=${repairers.length}/${desiredRepairers}, 矿工=${miners.length}/${desiredMiners}, 防御者=${defenders.length}/${desiredDefenders} `);
 
         // 尝试按优先级生成creep
         let spawnAttempted = false;
