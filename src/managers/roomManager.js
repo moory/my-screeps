@@ -2,8 +2,7 @@ const creepManager = require('./creepManager');
 const towerManager = require('./towerManager');
 const defenseManager = require('./defenseManager');
 const spawnManager = require('./spawnManager');
-const constructionManager = require('./constructionManager');
-const linkManager = require('./linkManager'); // 引入linkManager
+// const linkManager = require('./linkManager');
 
 // 房间管理器
 const roomManager = {
@@ -44,7 +43,7 @@ const roomManager = {
     // constructionManager.run(room);
     towerManager.run(room, mode);
     creepManager.run(room, mode);
-    linkManager.run(room); // 调用linkManager的run方法
+    // linkManager.run(room);
 
     // 生产管理放在最后，确保其他系统的需求已经确定
     this.manageSpawns(room, mode);
