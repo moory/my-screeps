@@ -295,17 +295,9 @@ var role_builder = {
           });
         }
         creep.moveByPath(creep.memory.spawnPath);
-        creep.say('🚨 撤退!');
         return;
       }
     }
-
-    // 如果目前不在W27N45就前往
-    // if (creep.room.name !== 'W27N45') {
-    //   const targetRoom = new RoomPosition(27, 45, 'W27N45');
-    //   creep.moveTo(targetRoom, {visualizePathStyle: {stroke: '#ffffff'}});
-    //   return;
-    // }
     
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
@@ -313,7 +305,6 @@ var role_builder = {
       // 清除建造路径缓存
       delete creep.memory.targetPath;
       delete creep.memory.controllerPath;
-      creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
@@ -321,7 +312,6 @@ var role_builder = {
       delete creep.memory.sourcePath;
       delete creep.memory.containerPath;
       delete creep.memory.droppedEnergyPath;
-      creep.say('🚧 建造');
     }
 
     // 建造模式
@@ -442,8 +432,16 @@ var role_upgrader = {
       // 在受到攻击时，升级者应该撤退到安全区域
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
+        // 使用缓存路径移动到出生点
+        if (!creep.memory.spawnPath || Game.time % 50 === 0) {
+          creep.memory.spawnPath = creep.pos.findPathTo(spawn, {
+            serialize: true,
+            ignoreCreeps: true,
+            maxOps: 500,
+            range: 3
+          });
+        }
+        creep.moveByPath(creep.memory.spawnPath);
         return;
       }
     }
@@ -451,11 +449,15 @@ var role_upgrader = {
     // 设置工作状态
     if (creep.memory.upgrading && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.upgrading = false;
-      creep.say('🔄 采集');
+      // 清除升级路径缓存
+      delete creep.memory.controllerPath;
     }
     if (!creep.memory.upgrading && creep.store.getFreeCapacity() === 0) {
       creep.memory.upgrading = true;
-      creep.say('⚡ 升级');
+      // 清除采集路径缓存
+      delete creep.memory.containerPath;
+      delete creep.memory.droppedEnergyPath;
+      delete creep.memory.sourcePath;
     }
 
     // 升级模式
@@ -463,10 +465,16 @@ var role_upgrader = {
       const controller = creep.room.controller;
       if (controller) {
         if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(controller, {
-            visualizePathStyle: { stroke: '#ffffff' },
-            reusePath: 5
-          });
+          // 使用缓存路径移动到控制器
+          if (!creep.memory.controllerPath || Game.time % 100 === 0) {
+            creep.memory.controllerPath = creep.pos.findPathTo(controller, {
+              serialize: true,
+              ignoreCreeps: true,
+              maxOps: 500,
+              range: 3
+            });
+          }
+          creep.moveByPath(creep.memory.controllerPath);
         }
       }
     }
@@ -481,10 +489,18 @@ var role_upgrader = {
 
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(container, {
-            visualizePathStyle: { stroke: '#ffaa00' },
-            reusePath: 3
-          });
+          // 使用缓存路径移动到容器
+          if (!creep.memory.containerPath || Game.time % 20 === 0 || 
+              (creep.memory.lastContainerId && creep.memory.lastContainerId !== container.id)) {
+            creep.memory.containerPath = creep.pos.findPathTo(container, {
+              serialize: true,
+              ignoreCreeps: true,
+              maxOps: 500,
+              range: 1
+            });
+            creep.memory.lastContainerId = container.id; // 记录当前容器ID
+          }
+          creep.moveByPath(creep.memory.containerPath);
         }
       } else {
         // 其次捡取掉落的能量
@@ -494,20 +510,36 @@ var role_upgrader = {
 
         if (droppedEnergy) {
           if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(droppedEnergy, {
-              visualizePathStyle: { stroke: '#ffaa00' },
-              reusePath: 3
-            });
+            // 使用缓存路径移动到掉落能量
+            if (!creep.memory.droppedEnergyPath || Game.time % 10 === 0 || 
+                (creep.memory.lastDroppedId && creep.memory.lastDroppedId !== droppedEnergy.id)) {
+              creep.memory.droppedEnergyPath = creep.pos.findPathTo(droppedEnergy, {
+                serialize: true,
+                ignoreCreeps: true,
+                maxOps: 500,
+                range: 1
+              });
+              creep.memory.lastDroppedId = droppedEnergy.id; // 记录当前掉落能量ID
+            }
+            creep.moveByPath(creep.memory.droppedEnergyPath);
           }
         } else {
           // 最后从能量源直接采集
           const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
           if (source) {
             if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-              creep.moveTo(source, {
-                visualizePathStyle: { stroke: '#ffaa00' },
-                reusePath: 3
-              });
+              // 使用缓存路径移动到能量源
+              if (!creep.memory.sourcePath || Game.time % 30 === 0 || 
+                  (creep.memory.lastSourceId && creep.memory.lastSourceId !== source.id)) {
+                creep.memory.sourcePath = creep.pos.findPathTo(source, {
+                  serialize: true,
+                  ignoreCreeps: true,
+                  maxOps: 500,
+                  range: 1
+                });
+                creep.memory.lastSourceId = source.id; // 记录当前能量源ID
+              }
+              creep.moveByPath(creep.memory.sourcePath);
             }
           }
         }
@@ -526,6 +558,13 @@ var role_upgrader = {
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
         creep.move(directions[Math.floor(Math.random() * directions.length)]);
         creep.memory.stuckCount = 0;
+        
+        // 清除所有路径缓存，强制重新计算路径
+        delete creep.memory.controllerPath;
+        delete creep.memory.containerPath;
+        delete creep.memory.droppedEnergyPath;
+        delete creep.memory.sourcePath;
+        delete creep.memory.spawnPath;
       }
     } else {
       creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
@@ -571,11 +610,9 @@ var role_repairer = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
-            creep.say('🔄 采集');
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
-            creep.say('🔧 修理');
         }
 
         // 修理模式
@@ -665,7 +702,6 @@ var role_miner = {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
                     creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-                    creep.say('🚨 受伤撤退!');
                     return;
                 }
             }
@@ -912,18 +948,16 @@ var role_miner = {
 
 var role_collector = {
   run(creep) {
-    const withdrawOrMove = (target, resourceType, say) => {
+    const withdrawOrMove = (target, resourceType) => {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
         creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
     };
 
-    const pickupOrMove = (resource, say) => {
+    const pickupOrMove = (resource) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
         creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
     };
 
     // 🚨 战时策略：优先支援塔、防止浪费资源
@@ -947,7 +981,6 @@ var role_collector = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -986,7 +1019,7 @@ var role_collector = {
       dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
     }
 
-    if (dropped) return pickupOrMove(dropped, '🧹 收集');
+    if (dropped) return pickupOrMove(dropped);
 
     const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
       filter: t => t.store && t.store.getUsedCapacity() > 0
@@ -995,7 +1028,7 @@ var role_collector = {
     if (tombstone) {
       for (const res in tombstone.store) {
         if (tombstone.store[res] > 0) {
-          withdrawOrMove(tombstone, res, '💀 收集');
+          withdrawOrMove(tombstone, res);
           return;
         }
       }
@@ -1008,7 +1041,7 @@ var role_collector = {
     if (ruin) {
       for (const res in ruin.store) {
         if (ruin.store[res] > 0) {
-          withdrawOrMove(ruin, res, '🏚️ 收集');
+          withdrawOrMove(ruin, res);
           return;
         }
       }

@@ -62,7 +62,6 @@ module.exports = {
           });
         }
         creep.moveByPath(creep.memory.spawnPath);
-        // creep.say('🚨 撤退!');
         return;
       }
     }
@@ -73,7 +72,6 @@ module.exports = {
       // 清除建造路径缓存
       delete creep.memory.targetPath;
       delete creep.memory.controllerPath;
-      // creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
@@ -81,7 +79,6 @@ module.exports = {
       delete creep.memory.sourcePath;
       delete creep.memory.containerPath;
       delete creep.memory.droppedEnergyPath;
-      // creep.say('🚧 建造');
     }
 
     // 建造模式

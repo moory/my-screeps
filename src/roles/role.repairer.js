@@ -35,11 +35,9 @@ module.exports = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
-            creep.say('🔄 采集');
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
-            creep.say('🔧 修理');
         }
 
         // 修理模式
