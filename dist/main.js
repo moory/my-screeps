@@ -19,7 +19,16 @@ var role_harvester = {
             // 如果有塔并且背包有能量，优先给塔充能
             if (tower && creep.store[RESOURCE_ENERGY] > 0) {
                 if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(tower, {visualizePathStyle: {stroke: '#ff0000'}});
+                    // 使用缓存路径移动到塔
+                    if (!creep.memory.towerPath || Game.time % 50 === 0) {
+                        creep.memory.towerPath = creep.pos.findPathTo(tower, {
+                            serialize: true,
+                            ignoreCreeps: true,
+                            maxOps: 500,
+                            range: 1
+                        });
+                    }
+                    creep.moveByPath(creep.memory.towerPath);
                 }
                 return;
             }
@@ -27,8 +36,16 @@ var role_harvester = {
             // 如果没有塔或没有能量，撤退到最近的出生点
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-                creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
-                creep.say('🚨 撤退!');
+                // 使用缓存路径移动到出生点
+                if (!creep.memory.spawnPath || Game.time % 50 === 0) {
+                    creep.memory.spawnPath = creep.pos.findPathTo(spawn, {
+                        serialize: true,
+                        ignoreCreeps: true,
+                        maxOps: 500,
+                        range: 3
+                    });
+                }
+                creep.moveByPath(creep.memory.spawnPath);
                 return;
             }
         }
@@ -36,14 +53,15 @@ var role_harvester = {
         // 设置工作状态
         if (creep.memory.harvesting && creep.store.getFreeCapacity() === 0) {
             creep.memory.harvesting = false;
-            creep.say('🚚 运输');
+            // 清除采集路径缓存，准备运输
+            delete creep.memory.cachedPath;
         }
         if (!creep.memory.harvesting && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.harvesting = true;
-            creep.say('🔄 采集');
             // 重新选择能量源
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
+            delete creep.memory.targetPath; // 清除目标路径缓存
         }
         
         // 自动清理无效内存
@@ -90,15 +108,25 @@ var role_harvester = {
                 if (minAssignedSource) {
                     creep.memory.sourceId = minAssignedSource;
                     const source = Game.getObjectById(minAssignedSource);
-                    const path = creep.pos.findPathTo(source, {
+                    creep.memory.cachedPath = creep.pos.findPathTo(source, {
                         serialize: true,
-                        ignoreCreeps: true
+                        ignoreCreeps: true,
+                        maxOps: 500,
+                        range: 1
                     });
-                    creep.memory.cachedPath = path;
                 } else {
-                    // 如果找不到能量源，moveTo 控制器附近等待
+                    // 如果找不到能量源，移动到控制器附近等待
                     if (creep.room.controller) {
-                        creep.moveTo(creep.room.controller);
+                        // 使用缓存路径移动到控制器
+                        if (!creep.memory.controllerPath || Game.time % 50 === 0) {
+                            creep.memory.controllerPath = creep.pos.findPathTo(creep.room.controller, {
+                                serialize: true,
+                                ignoreCreeps: true,
+                                maxOps: 500,
+                                range: 3
+                            });
+                        }
+                        creep.moveByPath(creep.memory.controllerPath);
                     }
                     return;
                 }
@@ -114,10 +142,16 @@ var role_harvester = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(container, {
-                        visualizePathStyle: { stroke: '#ffaa00' },
-                        reusePath: 3
-                    });
+                    // 使用缓存路径移动到容器
+                    if (!creep.memory.containerPath || Game.time % 20 === 0) {
+                        creep.memory.containerPath = creep.pos.findPathTo(container, {
+                            serialize: true,
+                            ignoreCreeps: true,
+                            maxOps: 500,
+                            range: 1
+                        });
+                    }
+                    creep.moveByPath(creep.memory.containerPath);
                 }
             } else if (source) {
                 const harvestResult = creep.harvest(source);
@@ -125,29 +159,28 @@ var role_harvester = {
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
-                        // ✅ fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
-                        if (moveResult < 0) {
-                            creep.moveTo(source, {
-                                visualizePathStyle: { stroke: '#ffaa00' },
-                                reusePath: 3
-                            });
-                            delete creep.memory.cachedPath;
-                        } else if (creep.pos.isNearTo(source)) {
+                        // 只有在路径失效时才重新计算
+                        if (moveResult === ERR_NOT_FOUND || moveResult === ERR_INVALID_ARGS) {
+                            // 重新计算路径并缓存
                             creep.memory.cachedPath = creep.pos.findPathTo(source, {
                                 serialize: true,
-                                ignoreCreeps: true
+                                ignoreCreeps: true,
+                                maxOps: 500,  // 限制寻路操作数
+                                range: 1      // 只需要到达能量源旁边
                             });
+                            // 立即使用新路径
+                            creep.moveByPath(creep.memory.cachedPath);
                         }
                     } else {
-                        creep.moveTo(source, {
-                            visualizePathStyle: { stroke: '#ffaa00' },
-                            reusePath: 3
+                        // 初次计算路径
+                        creep.memory.cachedPath = creep.pos.findPathTo(source, {
+                            serialize: true,
+                            ignoreCreeps: true,
+                            maxOps: 500,
+                            range: 1
                         });
+                        creep.moveByPath(creep.memory.cachedPath);
                     }
-                } else if (harvestResult === ERR_NOT_ENOUGH_RESOURCES && creep.store[RESOURCE_ENERGY] > 0) {
-                    // 如果能量源已空但背包有能量，切换到运输模式
-                    creep.memory.harvesting = false;
-                    creep.say('🚚 运输');
                 }
             }
         } else {
@@ -179,14 +212,19 @@ var role_harvester = {
                     : creep.transfer(target, RESOURCE_ENERGY);
 
                 if (result === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(target, {
-                        visualizePathStyle: { stroke: '#ffffff' },
-                        reusePath: 3
-                    });
-                }
-
-                if (!creep.pos.inRangeTo(target, 3)) {
-                    delete creep.memory.cachedPath;
+                    // 使用缓存路径移动到目标
+                    if (!creep.memory.targetPath || Game.time % 20 === 0 || 
+                        (creep.memory.lastTargetId && creep.memory.lastTargetId !== target.id)) {
+                        // 如果目标改变或定期刷新，重新计算路径
+                        creep.memory.targetPath = creep.pos.findPathTo(target, {
+                            serialize: true,
+                            ignoreCreeps: true,
+                            maxOps: 500,
+                            range: 1
+                        });
+                        creep.memory.lastTargetId = target.id; // 记录当前目标ID
+                    }
+                    creep.moveByPath(creep.memory.targetPath);
                 }
             }
         }
