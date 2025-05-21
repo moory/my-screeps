@@ -754,10 +754,12 @@ var role_miner = {
                 sourceAssignments[source.id] = 0;
             }
 
-            // 统计每个能量源的矿工数量
+            // 统计每个能量源的矿工数量，只计算活跃的矿工（剩余寿命超过100tick）
             for (const name in Game.creeps) {
                 const otherCreep = Game.creeps[name];
-                if (otherCreep.memory.role === 'miner' && otherCreep.memory.sourceId) {
+                if (otherCreep.memory.role === 'miner' &&
+                    otherCreep.memory.sourceId &&
+                    otherCreep.ticksToLive > 100) {
                     sourceAssignments[otherCreep.memory.sourceId] =
                         (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
                 }
@@ -774,8 +776,8 @@ var role_miner = {
                 }
             }
 
-            // 只有当矿工数量为0时才分配新矿工到这个能源
-            if (minAssignedSource && minAssignedCount === 0) {
+            // 分配矿工到能源
+            if (minAssignedSource) {
                 creep.memory.sourceId = minAssignedSource;
                 const source = Game.getObjectById(minAssignedSource);
                 const path = creep.pos.findPathTo(source, {
@@ -783,40 +785,7 @@ var role_miner = {
                     ignoreCreeps: true
                 });
                 creep.memory.cachedPath = path;
-                console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}`);
-            } else if (minAssignedSource && minAssignedCount > 0) {
-                // 如果所有能源都已有矿工，检查是否有即将死亡的矿工
-                let replacementFound = false;
-                for (const name in Game.creeps) {
-                    const otherCreep = Game.creeps[name];
-                    if (otherCreep.memory.role === 'miner' &&
-                        otherCreep.memory.sourceId &&
-                        otherCreep.ticksToLive < 150) { // 如果矿工剩余寿命不足150tick
-                        creep.memory.sourceId = otherCreep.memory.sourceId;
-                        creep.memory.replacingMiner = otherCreep.name;
-                        const source = Game.getObjectById(otherCreep.memory.sourceId);
-                        const path = creep.pos.findPathTo(source, {
-                            serialize: true,
-                            ignoreCreeps: true
-                        });
-                        creep.memory.cachedPath = path;
-                        console.log(`矿工 ${creep.name} 将替换即将死亡的矿工 ${otherCreep.name}`);
-                        replacementFound = true;
-                        break;
-                    }
-                }
-
-                // 如果没有找到需要替换的矿工，则选择矿工最少的能源
-                if (!replacementFound) {
-                    creep.memory.sourceId = minAssignedSource;
-                    const source = Game.getObjectById(minAssignedSource);
-                    const path = creep.pos.findPathTo(source, {
-                        serialize: true,
-                        ignoreCreeps: true
-                    });
-                    creep.memory.cachedPath = path;
-                    console.log(`矿工 ${creep.name} 被分配到已有矿工的能量源 ${minAssignedSource}`);
-                }
+                console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}，当前矿工数量：${minAssignedCount}`);
             } else {
                 // 如果找不到能量源，移动到控制器附近等待
                 if (creep.room.controller) {
@@ -830,24 +799,20 @@ var role_miner = {
 
         // 寻找附近的容器
         if (!creep.memory.containerId) {
-            // 检查是否有其他矿工已经绑定了这个能源附近的容器
-            let containerAlreadyAssigned = false;
-            let nearestContainer = null;
-
             // 查找附近的容器
             const containers = creep.pos.findInRange(FIND_STRUCTURES, 3, {
                 filter: s => s.structureType === STRUCTURE_CONTAINER
             });
 
             if (containers.length > 0) {
-                nearestContainer = containers[0];
-
                 // 检查这个容器是否已被其他矿工绑定
+                let containerAlreadyAssigned = false;
                 for (const name in Game.creeps) {
                     const otherCreep = Game.creeps[name];
                     if (otherCreep.id !== creep.id &&
                         otherCreep.memory.role === 'miner' &&
-                        otherCreep.memory.containerId === nearestContainer.id) {
+                        otherCreep.memory.containerId === containers[0].id &&
+                        otherCreep.ticksToLive > creep.ticksToLive) { // 比较寿命，让寿命更长的矿工优先绑定
                         containerAlreadyAssigned = true;
                         break;
                     }
@@ -855,8 +820,8 @@ var role_miner = {
 
                 // 如果容器未被绑定，则绑定它
                 if (!containerAlreadyAssigned) {
-                    creep.memory.containerId = nearestContainer.id;
-                    console.log(`矿工 ${creep.name} 绑定到容器 ${nearestContainer.id}`);
+                    creep.memory.containerId = containers[0].id;
+                    console.log(`矿工 ${creep.name} 绑定到容器 ${containers[0].id}`);
                 }
             }
         }
@@ -945,10 +910,9 @@ var role_miner = {
             // 添加卡住检测
             if (creep.memory.lastPos &&
                 creep.memory.lastPos.x === creep.pos.x &&
-                creep.memory.lastPos.y === creep.pos.y &&
-                creep.memory.stuckCount) {
+                creep.memory.lastPos.y === creep.pos.y) {
 
-                creep.memory.stuckCount++;
+                creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
 
                 // 如果卡住超过10个tick，重新计算路径
                 if (creep.memory.stuckCount > 10) {
@@ -960,7 +924,7 @@ var role_miner = {
                 }
             } else {
                 creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
-                creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
+                creep.memory.stuckCount = 0; // 重置卡住计数
             }
         }
     }
