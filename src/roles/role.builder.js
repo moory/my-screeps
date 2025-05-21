@@ -62,17 +62,10 @@ module.exports = {
           });
         }
         creep.moveByPath(creep.memory.spawnPath);
-        creep.say('🚨 撤退!');
+        // creep.say('🚨 撤退!');
         return;
       }
     }
-
-    // 如果目前不在W27N45就前往
-    // if (creep.room.name !== 'W27N45') {
-    //   const targetRoom = new RoomPosition(27, 45, 'W27N45');
-    //   creep.moveTo(targetRoom, {visualizePathStyle: {stroke: '#ffffff'}});
-    //   return;
-    // }
     
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
@@ -80,7 +73,7 @@ module.exports = {
       // 清除建造路径缓存
       delete creep.memory.targetPath;
       delete creep.memory.controllerPath;
-      creep.say('🔄 采集');
+      // creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
@@ -88,7 +81,7 @@ module.exports = {
       delete creep.memory.sourcePath;
       delete creep.memory.containerPath;
       delete creep.memory.droppedEnergyPath;
-      creep.say('🚧 建造');
+      // creep.say('🚧 建造');
     }
 
     // 建造模式
