@@ -47,7 +47,7 @@ module.exports.loop = function () {
     cpuManager.run();
     
     // 检测是否需要自动切换模式
-    checkAndSwitchModes();
+    // checkAndSwitchModes();
   }, function(error) {
     // 添加错误处理回调，记录详细错误信息
     console.log('游戏循环出错: ' + error + '\n' + error.stack);
