@@ -2,7 +2,6 @@ const roomManager = require('./managers/roomManager');
 const memoryManager = require('./managers/memoryManager');
 const cpuManager = require('./managers/cpuManager');
 const { tryCatch } = require('./utils/errorCatcher');
-const expansionManager = require('./managers/expansionManager');
 const configManager = require('./managers/configManager');
 const consoleCommands = require('./utils/consoleCommands');
 
@@ -18,26 +17,25 @@ module.exports.loop = function () {
     memoryManager.run();
     
     // 根据当前模式执行不同逻辑
-    const currentMode = configManager.getMode();
+    // const currentMode = configManager.getMode();
     
-    if (currentMode === 'emergency') {
-      // 紧急模式逻辑
-      runEmergencyMode();
-    } else if (currentMode === 'expansion') {
-      // 扩张模式逻辑
-      runExpansionMode();
-      // 暂时屏蔽扩张管理器调用
-      // expansionManager.run(Game);
-    } else {
-      // 正常模式逻辑
-      runNormalMode();
-    }
+    // if (currentMode === 'emergency') {
+    //   // 紧急模式逻辑
+    //   runEmergencyMode();
+    // } else if (currentMode === 'expansion') {
+    //   // 扩张模式逻辑
+    //   runExpansionMode();
+    //   // 暂时屏蔽扩张管理器调用
+    //   // expansionManager.run(Game);
+    // } else {
+    //   // 正常模式逻辑
+    //   runNormalMode();
+    // }
 
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       if (room.controller && room.controller.my) {
         roomManager.run(room, currentMode);
-        // 移除对 creepManager.run 的调用，因为它现在在 roomManager 中被调用
       }
     }
     

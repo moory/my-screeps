@@ -1830,20 +1830,20 @@ var loop = main.loop = function () {
     memoryManager.run();
     
     // 根据当前模式执行不同逻辑
-    const currentMode = configManager.getMode();
+    // const currentMode = configManager.getMode();
     
-    if (currentMode === 'emergency') {
-      // 紧急模式逻辑
-      runEmergencyMode();
-    } else if (currentMode === 'expansion') {
-      // 扩张模式逻辑
-      runExpansionMode();
-      // 暂时屏蔽扩张管理器调用
-      // expansionManager.run(Game);
-    } else {
-      // 正常模式逻辑
-      runNormalMode();
-    }
+    // if (currentMode === 'emergency') {
+    //   // 紧急模式逻辑
+    //   runEmergencyMode();
+    // } else if (currentMode === 'expansion') {
+    //   // 扩张模式逻辑
+    //   runExpansionMode();
+    //   // 暂时屏蔽扩张管理器调用
+    //   // expansionManager.run(Game);
+    // } else {
+    //   // 正常模式逻辑
+    //   runNormalMode();
+    // }
 
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
@@ -1865,24 +1865,6 @@ var loop = main.loop = function () {
     console.log('游戏循环出错: ' + error + '\n' + error.stack);
   });
 };
-
-function runEmergencyMode() {
-  // 紧急模式下的特殊逻辑
-  console.log('正在执行紧急模式...');
-  // 优先孵化基本单位，停止建造，专注防御和能量收集
-}
-
-function runExpansionMode() {
-  // 扩张模式下的特殊逻辑
-  console.log('正在执行扩张模式...');
-  // 优先建造和升级，准备扩张到新房间
-}
-
-function runNormalMode() {
-  // 正常模式下的特殊逻辑
-  console.log('正在执行正常模式...');
-  // 平衡发展
-}
 
 exports.default = main;
 exports.loop = loop;
