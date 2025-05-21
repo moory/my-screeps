@@ -1848,8 +1848,7 @@ var loop = main.loop = function () {
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       if (room.controller && room.controller.my) {
-        roomManager.run(room, currentMode);
-        // 移除对 creepManager.run 的调用，因为它现在在 roomManager 中被调用
+        roomManager.run(room);
       }
     }
     

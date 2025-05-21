@@ -35,7 +35,7 @@ module.exports.loop = function () {
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName];
       if (room.controller && room.controller.my) {
-        roomManager.run(room, currentMode);
+        roomManager.run(room);
       }
     }
     
