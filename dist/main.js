@@ -575,6 +575,27 @@ var role_upgrader = {
 
 var role_repairer = {
     run(creep) {
+        // 移动到目标的优化函数
+        const moveToTarget = (target, pathType, visualStyle = { stroke: '#ffaa00' }) => {
+            // 如果没有路径缓存或者到了刷新时间，重新计算路径
+            if (!creep.memory[pathType] || Game.time % 50 === 0) {
+                creep.memory[pathType] = creep.pos.findPathTo(target, {
+                    serialize: true,
+                    ignoreCreeps: true,
+                    maxOps: 500,
+                    range: 1
+                });
+            }
+            // 使用缓存的路径移动
+            const moveResult = creep.moveByPath(creep.memory[pathType]);
+            
+            // 如果移动失败，清除路径缓存并尝试直接移动
+            if (moveResult !== OK && moveResult !== ERR_TIRED) {
+                delete creep.memory[pathType];
+                creep.moveTo(target, { visualizePathStyle: visualStyle, reusePath: 5 });
+            }
+        };
+
         // 检查房间是否处于攻击状态
         if (creep.room.memory.underAttack) {
             // 如果有能量，优先修复防御建筑
@@ -586,7 +607,7 @@ var role_repairer = {
 
                 if (damagedTower) {
                     if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(damagedTower);
+                        moveToTarget(damagedTower, 'towerPath');
                     }
                     return;
                 }
@@ -600,7 +621,7 @@ var role_repairer = {
 
                 if (barrier) {
                     if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(barrier);
+                        moveToTarget(barrier, 'barrierPath');
                     }
                     return;
                 }
@@ -610,9 +631,13 @@ var role_repairer = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
+            // 清除修理目标的路径缓存
+            delete creep.memory.repairPath;
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
+            // 清除能量源的路径缓存
+            delete creep.memory.energyPath;
         }
 
         // 修理模式
@@ -645,14 +670,14 @@ var role_repairer = {
 
             if (target) {
                 if (creep.repair(target) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(target);
+                    moveToTarget(target, 'repairPath', { stroke: '#ffffff' });
                 }
             } else {
                 // 没有修理目标时，转为升级控制器
                 const controller = creep.room.controller;
                 if (controller) {
                     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(controller);
+                        moveToTarget(controller, 'controllerPath', { stroke: '#ffffff' });
                     }
                 }
             }
@@ -667,7 +692,7 @@ var role_repairer = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creep.moveTo(container);
+                    moveToTarget(container, 'containerPath');
                 }
             } else {
                 // 其次捡取掉落的能量
@@ -677,14 +702,14 @@ var role_repairer = {
 
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(droppedEnergy);
+                        moveToTarget(droppedEnergy, 'droppedPath');
                     }
                 } else {
                     // 最后从能量源直接采集
                     const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
                     if (source) {
                         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(source);
+                            moveToTarget(source, 'sourcePath');
                         }
                     }
                 }
@@ -1060,7 +1085,6 @@ var role_defender = {
         const hostiles = creep.room.find(FIND_HOSTILE_CREEPS);
         if (hostiles.length === 0) {
             // 没有敌人但房间仍标记为被攻击，可能是误报
-            creep.say('🛡️ 巡逻');
             return;
         }
 
