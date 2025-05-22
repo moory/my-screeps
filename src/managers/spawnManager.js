@@ -15,15 +15,15 @@ module.exports = {
         if (!spawn || spawn.spawning) return;
 
         // 根据RCL和情况动态调整所需数量
-        const baseHarvesters = room.controller.level < 3 ? 3 : 2;
+        const baseHarvesters = 2//room.controller.level < 3 ? 2 : 2;
         const desiredBuilders = room.find(FIND_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
-        const desiredRepairers = room.find(FIND_STRUCTURES, {
+        const desiredRepairers =  room.find(FIND_STRUCTURES, {
             filter: s => s.hits < s.hitsMax * 0.8 &&
                 (s.structureType !== STRUCTURE_WALL || s.hits < 10000) &&
                 (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
-        }).length > 0 ? 2 : 1;
+        }).length > 0 ? 1 : 1;
         
-        const desiredMiners = room.controller.level >= 2 ? 3 : 0;
+        const desiredMiners = room.controller.level >= 2 ? 2 : 0;
 
         // 检查是否有掉落资源或墓碑来决定是否需要收集者
         const droppedResources = room.find(FIND_DROPPED_RESOURCES);

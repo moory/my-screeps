@@ -1,15 +1,17 @@
 module.exports = {
   run(creep) {
-    const withdrawOrMove = (target, resourceType) => {
+    const withdrawOrMove = (target, resourceType, say) => {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(target);
+        creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
+      if (say) creep.say(say);
     };
 
-    const pickupOrMove = (resource) => {
+    const pickupOrMove = (resource, say) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(resource);
+        creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
+      if (say) creep.say(say);
     };
 
     // 🚨 战时策略：优先支援塔、防止浪费资源
@@ -21,7 +23,7 @@ module.exports = {
         });
         if (tower) {
           if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(tower);
+            creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
           }
           return;
         }
@@ -32,7 +34,8 @@ module.exports = {
 
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn);
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -53,7 +56,7 @@ module.exports = {
       if (target) {
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target);
+            creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
             break;
           }
         }
@@ -80,7 +83,7 @@ module.exports = {
     if (tombstone) {
       for (const res in tombstone.store) {
         if (tombstone.store[res] > 0) {
-          withdrawOrMove(tombstone, res);
+          withdrawOrMove(tombstone, res, '💀 收集');
           return;
         }
       }
@@ -93,7 +96,7 @@ module.exports = {
     if (ruin) {
       for (const res in ruin.store) {
         if (ruin.store[res] > 0) {
-          withdrawOrMove(ruin, res);
+          withdrawOrMove(ruin, res, '🏚️ 收集');
           return;
         }
       }

@@ -12,58 +12,40 @@ var role_harvester = {
         if (creep.room.memory.underAttack) {
             // 寻找最近的塔来提供能量
             const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-                filter: s => s.structureType === STRUCTURE_TOWER && 
+                filter: s => s.structureType === STRUCTURE_TOWER &&
                            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
-            
+
             // 如果有塔并且背包有能量，优先给塔充能
             if (tower && creep.store[RESOURCE_ENERGY] > 0) {
                 if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    // 使用缓存路径移动到塔
-                    if (!creep.memory.towerPath || Game.time % 50 === 0) {
-                        creep.memory.towerPath = creep.pos.findPathTo(tower, {
-                            serialize: true,
-                            ignoreCreeps: true,
-                            maxOps: 500,
-                            range: 1
-                        });
-                    }
-                    creep.moveByPath(creep.memory.towerPath);
+                    creep.moveTo(tower, {visualizePathStyle: {stroke: '#ff0000'}});
                 }
                 return;
             }
-            
+
             // 如果没有塔或没有能量，撤退到最近的出生点
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-                // 使用缓存路径移动到出生点
-                if (!creep.memory.spawnPath || Game.time % 50 === 0) {
-                    creep.memory.spawnPath = creep.pos.findPathTo(spawn, {
-                        serialize: true,
-                        ignoreCreeps: true,
-                        maxOps: 500,
-                        range: 3
-                    });
-                }
-                creep.moveByPath(creep.memory.spawnPath);
+                creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
+                creep.say('🚨 撤退!');
                 return;
             }
         }
-        
+
         // 设置工作状态
         if (creep.memory.harvesting && creep.store.getFreeCapacity() === 0) {
             creep.memory.harvesting = false;
-            // 清除采集路径缓存，准备运输
-            delete creep.memory.cachedPath;
+            creep.say('🚚 运输');
         }
         if (!creep.memory.harvesting && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.harvesting = true;
+            creep.say('🔄 采集');
             // 重新选择能量源
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
-            delete creep.memory.targetPath; // 清除目标路径缓存
         }
-        
+
         // 自动清理无效内存
         if (creep.memory.sourceId && !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
@@ -76,57 +58,47 @@ var role_harvester = {
             if (!creep.memory.sourceId) {
                 // 使用FIND_SOURCES而不是FIND_SOURCES_ACTIVE
                 const sources = creep.room.find(FIND_SOURCES);
-                
+
                 // 找到当前分配harvester最少的能量源
                 const sourceAssignments = {};
-                
+
                 // 初始化每个能量源的harvester数量为0
                 for (const source of sources) {
                     sourceAssignments[source.id] = 0;
                 }
-                
+
                 // 统计每个能量源的harvester数量
                 for (const name in Game.creeps) {
                     const otherCreep = Game.creeps[name];
                     if (otherCreep.memory.role === 'harvester' && otherCreep.memory.sourceId) {
-                        sourceAssignments[otherCreep.memory.sourceId] = 
+                        sourceAssignments[otherCreep.memory.sourceId] =
                             (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
                     }
                 }
-                
+
                 // 找到分配harvester最少的能量源
                 let minAssignedSource = null;
                 let minAssignedCount = Infinity;
-                
+
                 for (const sourceId in sourceAssignments) {
                     if (sourceAssignments[sourceId] < minAssignedCount) {
                         minAssignedCount = sourceAssignments[sourceId];
                         minAssignedSource = sourceId;
                     }
                 }
-                
+
                 if (minAssignedSource) {
                     creep.memory.sourceId = minAssignedSource;
                     const source = Game.getObjectById(minAssignedSource);
-                    creep.memory.cachedPath = creep.pos.findPathTo(source, {
+                    const path = creep.pos.findPathTo(source, {
                         serialize: true,
-                        ignoreCreeps: true,
-                        maxOps: 500,
-                        range: 1
+                        ignoreCreeps: true
                     });
+                    creep.memory.cachedPath = path;
                 } else {
-                    // 如果找不到能量源，移动到控制器附近等待
+                    // 如果找不到能量源，moveTo 控制器附近等待
                     if (creep.room.controller) {
-                        // 使用缓存路径移动到控制器
-                        if (!creep.memory.controllerPath || Game.time % 50 === 0) {
-                            creep.memory.controllerPath = creep.pos.findPathTo(creep.room.controller, {
-                                serialize: true,
-                                ignoreCreeps: true,
-                                maxOps: 500,
-                                range: 3
-                            });
-                        }
-                        creep.moveByPath(creep.memory.controllerPath);
+                        creep.moveTo(creep.room.controller);
                     }
                     return;
                 }
@@ -142,16 +114,10 @@ var role_harvester = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    // 使用缓存路径移动到容器
-                    if (!creep.memory.containerPath || Game.time % 20 === 0) {
-                        creep.memory.containerPath = creep.pos.findPathTo(container, {
-                            serialize: true,
-                            ignoreCreeps: true,
-                            maxOps: 500,
-                            range: 1
-                        });
-                    }
-                    creep.moveByPath(creep.memory.containerPath);
+                    creep.moveTo(container, {
+                        visualizePathStyle: { stroke: '#ffaa00' },
+                        reusePath: 3
+                    });
                 }
             } else if (source) {
                 const harvestResult = creep.harvest(source);
@@ -159,28 +125,29 @@ var role_harvester = {
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
-                        // 只有在路径失效时才重新计算
-                        if (moveResult === ERR_NOT_FOUND || moveResult === ERR_INVALID_ARGS) {
-                            // 重新计算路径并缓存
+                        // ✅ fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
+                        if (moveResult < 0) {
+                            creep.moveTo(source, {
+                                visualizePathStyle: { stroke: '#ffaa00' },
+                                reusePath: 3
+                            });
+                            delete creep.memory.cachedPath;
+                        } else if (creep.pos.isNearTo(source)) {
                             creep.memory.cachedPath = creep.pos.findPathTo(source, {
                                 serialize: true,
-                                ignoreCreeps: true,
-                                maxOps: 500,  // 限制寻路操作数
-                                range: 1      // 只需要到达能量源旁边
+                                ignoreCreeps: true
                             });
-                            // 立即使用新路径
-                            creep.moveByPath(creep.memory.cachedPath);
                         }
                     } else {
-                        // 初次计算路径
-                        creep.memory.cachedPath = creep.pos.findPathTo(source, {
-                            serialize: true,
-                            ignoreCreeps: true,
-                            maxOps: 500,
-                            range: 1
+                        creep.moveTo(source, {
+                            visualizePathStyle: { stroke: '#ffaa00' },
+                            reusePath: 3
                         });
-                        creep.moveByPath(creep.memory.cachedPath);
                     }
+                } else if (harvestResult === ERR_NOT_ENOUGH_RESOURCES && creep.store[RESOURCE_ENERGY] > 0) {
+                    // 如果能量源已空但背包有能量，切换到运输模式
+                    creep.memory.harvesting = false;
+                    creep.say('🚚 运输');
                 }
             }
         } else {
@@ -212,19 +179,14 @@ var role_harvester = {
                     : creep.transfer(target, RESOURCE_ENERGY);
 
                 if (result === ERR_NOT_IN_RANGE) {
-                    // 使用缓存路径移动到目标
-                    if (!creep.memory.targetPath || Game.time % 20 === 0 || 
-                        (creep.memory.lastTargetId && creep.memory.lastTargetId !== target.id)) {
-                        // 如果目标改变或定期刷新，重新计算路径
-                        creep.memory.targetPath = creep.pos.findPathTo(target, {
-                            serialize: true,
-                            ignoreCreeps: true,
-                            maxOps: 500,
-                            range: 1
-                        });
-                        creep.memory.lastTargetId = target.id; // 记录当前目标ID
-                    }
-                    creep.moveByPath(creep.memory.targetPath);
+                    creep.moveTo(target, {
+                        visualizePathStyle: { stroke: '#ffffff' },
+                        reusePath: 3
+                    });
+                }
+
+                if (!creep.pos.inRangeTo(target, 3)) {
+                    delete creep.memory.cachedPath;
                 }
             }
         }
@@ -244,16 +206,7 @@ var role_builder = {
 
         if (damagedTower) {
           if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-            // 使用缓存路径移动到受损塔
-            if (!creep.memory.towerPath || Game.time % 50 === 0) {
-              creep.memory.towerPath = creep.pos.findPathTo(damagedTower, {
-                serialize: true,
-                ignoreCreeps: true,
-                maxOps: 500,
-                range: 3
-              });
-            }
-            creep.moveByPath(creep.memory.towerPath);
+            creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
           }
           return;
         }
@@ -267,16 +220,7 @@ var role_builder = {
 
         if (barrier) {
           if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-            // 使用缓存路径移动到防御墙
-            if (!creep.memory.barrierPath || Game.time % 50 === 0) {
-              creep.memory.barrierPath = creep.pos.findPathTo(barrier, {
-                serialize: true,
-                ignoreCreeps: true,
-                maxOps: 500,
-                range: 3
-              });
-            }
-            creep.moveByPath(creep.memory.barrierPath);
+            creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
           }
           return;
         }
@@ -285,33 +229,26 @@ var role_builder = {
       // 如果没有能量或没有需要修复的建筑，撤退到出生点
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        // 使用缓存路径移动到出生点
-        if (!creep.memory.spawnPath || Game.time % 50 === 0) {
-          creep.memory.spawnPath = creep.pos.findPathTo(spawn, {
-            serialize: true,
-            ignoreCreeps: true,
-            maxOps: 500,
-            range: 3
-          });
-        }
-        creep.moveByPath(creep.memory.spawnPath);
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
         return;
       }
     }
-    
+
+    // 如果目前不在W27N45就前往
+    // if (creep.room.name !== 'W27N45') {
+    //   const targetRoom = new RoomPosition(27, 45, 'W27N45');
+    //   creep.moveTo(targetRoom, {visualizePathStyle: {stroke: '#ffffff'}});
+    //   return;
+    // }
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.building = false;
-      // 清除建造路径缓存
-      delete creep.memory.targetPath;
-      delete creep.memory.controllerPath;
+      creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
-      // 清除采集路径缓存
-      delete creep.memory.sourcePath;
-      delete creep.memory.containerPath;
-      delete creep.memory.droppedEnergyPath;
+      creep.say('🚧 建造');
     }
 
     // 建造模式
@@ -319,34 +256,14 @@ var role_builder = {
       const target = creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
       if (target) {
         if (creep.build(target) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到建筑工地
-          if (!creep.memory.targetPath || Game.time % 20 === 0 || 
-              (creep.memory.lastTargetId && creep.memory.lastTargetId !== target.id)) {
-            creep.memory.targetPath = creep.pos.findPathTo(target, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 3
-            });
-            creep.memory.lastTargetId = target.id; // 记录当前目标ID
-          }
-          creep.moveByPath(creep.memory.targetPath);
+          creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
         }
       } else {
         // 如果没有工地，默认去升级控制器，避免浪费
         const controller = creep.room.controller;
         if (controller) {
           if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-            // 使用缓存路径移动到控制器
-            if (!creep.memory.controllerPath || Game.time % 100 === 0) {
-              creep.memory.controllerPath = creep.pos.findPathTo(controller, {
-                serialize: true,
-                ignoreCreeps: true,
-                maxOps: 500,
-                range: 3
-              });
-            }
-            creep.moveByPath(creep.memory.controllerPath);
+            creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
           }
         }
       }
@@ -360,18 +277,7 @@ var role_builder = {
 
       if (droppedEnergy && droppedEnergy.amount > 50) {
         if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到掉落能量
-          if (!creep.memory.droppedEnergyPath || Game.time % 10 === 0 || 
-              (creep.memory.lastDroppedId && creep.memory.lastDroppedId !== droppedEnergy.id)) {
-            creep.memory.droppedEnergyPath = creep.pos.findPathTo(droppedEnergy, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 1
-            });
-            creep.memory.lastDroppedId = droppedEnergy.id; // 记录当前掉落能量ID
-          }
-          creep.moveByPath(creep.memory.droppedEnergyPath);
+          creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
           return;
         }
       }
@@ -387,18 +293,7 @@ var role_builder = {
 
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到容器
-          if (!creep.memory.containerPath || Game.time % 20 === 0 || 
-              (creep.memory.lastContainerId && creep.memory.lastContainerId !== container.id)) {
-            creep.memory.containerPath = creep.pos.findPathTo(container, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 1
-            });
-            creep.memory.lastContainerId = container.id; // 记录当前容器ID
-          }
-          creep.moveByPath(creep.memory.containerPath);
+          creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
           return;
         }
       }
@@ -407,18 +302,7 @@ var role_builder = {
       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
       if (source) {
         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到能量源
-          if (!creep.memory.sourcePath || Game.time % 30 === 0 || 
-              (creep.memory.lastSourceId && creep.memory.lastSourceId !== source.id)) {
-            creep.memory.sourcePath = creep.pos.findPathTo(source, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 1
-            });
-            creep.memory.lastSourceId = source.id; // 记录当前能量源ID
-          }
-          creep.moveByPath(creep.memory.sourcePath);
+          creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
         }
       }
     }
@@ -432,16 +316,8 @@ var role_upgrader = {
       // 在受到攻击时，升级者应该撤退到安全区域
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        // 使用缓存路径移动到出生点
-        if (!creep.memory.spawnPath || Game.time % 50 === 0) {
-          creep.memory.spawnPath = creep.pos.findPathTo(spawn, {
-            serialize: true,
-            ignoreCreeps: true,
-            maxOps: 500,
-            range: 3
-          });
-        }
-        creep.moveByPath(creep.memory.spawnPath);
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -449,15 +325,11 @@ var role_upgrader = {
     // 设置工作状态
     if (creep.memory.upgrading && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.upgrading = false;
-      // 清除升级路径缓存
-      delete creep.memory.controllerPath;
+      creep.say('🔄 采集');
     }
     if (!creep.memory.upgrading && creep.store.getFreeCapacity() === 0) {
       creep.memory.upgrading = true;
-      // 清除采集路径缓存
-      delete creep.memory.containerPath;
-      delete creep.memory.droppedEnergyPath;
-      delete creep.memory.sourcePath;
+      creep.say('⚡ 升级');
     }
 
     // 升级模式
@@ -465,16 +337,10 @@ var role_upgrader = {
       const controller = creep.room.controller;
       if (controller) {
         if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到控制器
-          if (!creep.memory.controllerPath || Game.time % 100 === 0) {
-            creep.memory.controllerPath = creep.pos.findPathTo(controller, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 3
-            });
-          }
-          creep.moveByPath(creep.memory.controllerPath);
+          creep.moveTo(controller, {
+            visualizePathStyle: { stroke: '#ffffff' },
+            reusePath: 5
+          });
         }
       }
     }
@@ -489,18 +355,10 @@ var role_upgrader = {
 
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          // 使用缓存路径移动到容器
-          if (!creep.memory.containerPath || Game.time % 20 === 0 || 
-              (creep.memory.lastContainerId && creep.memory.lastContainerId !== container.id)) {
-            creep.memory.containerPath = creep.pos.findPathTo(container, {
-              serialize: true,
-              ignoreCreeps: true,
-              maxOps: 500,
-              range: 1
-            });
-            creep.memory.lastContainerId = container.id; // 记录当前容器ID
-          }
-          creep.moveByPath(creep.memory.containerPath);
+          creep.moveTo(container, {
+            visualizePathStyle: { stroke: '#ffaa00' },
+            reusePath: 3
+          });
         }
       } else {
         // 其次捡取掉落的能量
@@ -510,36 +368,20 @@ var role_upgrader = {
 
         if (droppedEnergy) {
           if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-            // 使用缓存路径移动到掉落能量
-            if (!creep.memory.droppedEnergyPath || Game.time % 10 === 0 || 
-                (creep.memory.lastDroppedId && creep.memory.lastDroppedId !== droppedEnergy.id)) {
-              creep.memory.droppedEnergyPath = creep.pos.findPathTo(droppedEnergy, {
-                serialize: true,
-                ignoreCreeps: true,
-                maxOps: 500,
-                range: 1
-              });
-              creep.memory.lastDroppedId = droppedEnergy.id; // 记录当前掉落能量ID
-            }
-            creep.moveByPath(creep.memory.droppedEnergyPath);
+            creep.moveTo(droppedEnergy, {
+              visualizePathStyle: { stroke: '#ffaa00' },
+              reusePath: 3
+            });
           }
         } else {
           // 最后从能量源直接采集
           const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
           if (source) {
             if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-              // 使用缓存路径移动到能量源
-              if (!creep.memory.sourcePath || Game.time % 30 === 0 || 
-                  (creep.memory.lastSourceId && creep.memory.lastSourceId !== source.id)) {
-                creep.memory.sourcePath = creep.pos.findPathTo(source, {
-                  serialize: true,
-                  ignoreCreeps: true,
-                  maxOps: 500,
-                  range: 1
-                });
-                creep.memory.lastSourceId = source.id; // 记录当前能量源ID
-              }
-              creep.moveByPath(creep.memory.sourcePath);
+              creep.moveTo(source, {
+                visualizePathStyle: { stroke: '#ffaa00' },
+                reusePath: 3
+              });
             }
           }
         }
@@ -558,13 +400,6 @@ var role_upgrader = {
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
         creep.move(directions[Math.floor(Math.random() * directions.length)]);
         creep.memory.stuckCount = 0;
-        
-        // 清除所有路径缓存，强制重新计算路径
-        delete creep.memory.controllerPath;
-        delete creep.memory.containerPath;
-        delete creep.memory.droppedEnergyPath;
-        delete creep.memory.sourcePath;
-        delete creep.memory.spawnPath;
       }
     } else {
       creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
@@ -575,27 +410,6 @@ var role_upgrader = {
 
 var role_repairer = {
     run(creep) {
-        // 移动到目标的优化函数
-        const moveToTarget = (target, pathType, visualStyle = { stroke: '#ffaa00' }) => {
-            // 如果没有路径缓存或者到了刷新时间，重新计算路径
-            if (!creep.memory[pathType] || Game.time % 50 === 0) {
-                creep.memory[pathType] = creep.pos.findPathTo(target, {
-                    serialize: true,
-                    ignoreCreeps: true,
-                    maxOps: 500,
-                    range: 1
-                });
-            }
-            // 使用缓存的路径移动
-            const moveResult = creep.moveByPath(creep.memory[pathType]);
-            
-            // 如果移动失败，清除路径缓存并尝试直接移动
-            if (moveResult !== OK && moveResult !== ERR_TIRED) {
-                delete creep.memory[pathType];
-                creep.moveTo(target, { visualizePathStyle: visualStyle, reusePath: 5 });
-            }
-        };
-
         // 检查房间是否处于攻击状态
         if (creep.room.memory.underAttack) {
             // 如果有能量，优先修复防御建筑
@@ -607,7 +421,7 @@ var role_repairer = {
 
                 if (damagedTower) {
                     if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(damagedTower, 'towerPath');
+                        creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
                     }
                     return;
                 }
@@ -621,7 +435,7 @@ var role_repairer = {
 
                 if (barrier) {
                     if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(barrier, 'barrierPath');
+                        creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
                     }
                     return;
                 }
@@ -631,13 +445,11 @@ var role_repairer = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
-            // 清除修理目标的路径缓存
-            delete creep.memory.repairPath;
+            creep.say('🔄 采集');
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
-            // 清除能量源的路径缓存
-            delete creep.memory.energyPath;
+            creep.say('🔧 修理');
         }
 
         // 修理模式
@@ -670,14 +482,14 @@ var role_repairer = {
 
             if (target) {
                 if (creep.repair(target) === ERR_NOT_IN_RANGE) {
-                    moveToTarget(target, 'repairPath', { stroke: '#ffffff' });
+                    creep.moveTo(target, { visualizePathStyle: { stroke: '#ff00ff' } });
                 }
             } else {
                 // 没有修理目标时，转为升级控制器
                 const controller = creep.room.controller;
                 if (controller) {
                     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(controller, 'controllerPath', { stroke: '#ffffff' });
+                        creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
                     }
                 }
             }
@@ -692,7 +504,7 @@ var role_repairer = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    moveToTarget(container, 'containerPath');
+                    creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
                 }
             } else {
                 // 其次捡取掉落的能量
@@ -702,14 +514,14 @@ var role_repairer = {
 
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(droppedEnergy, 'droppedPath');
+                        creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
                     }
                 } else {
                     // 最后从能量源直接采集
                     const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
                     if (source) {
                         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-                            moveToTarget(source, 'sourcePath');
+                            creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
                         }
                     }
                 }
@@ -726,7 +538,8 @@ var role_miner = {
             if (creep.hits < creep.hitsMax * 0.5) {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
-                    creep.moveTo(spawn);
+                    creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+                    creep.say('🚨 受伤撤退!');
                     return;
                 }
             }
@@ -754,12 +567,10 @@ var role_miner = {
                 sourceAssignments[source.id] = 0;
             }
 
-            // 统计每个能量源的矿工数量，只计算活跃的矿工（剩余寿命超过100tick）
+            // 统计每个能量源的矿工数量
             for (const name in Game.creeps) {
                 const otherCreep = Game.creeps[name];
-                if (otherCreep.memory.role === 'miner' &&
-                    otherCreep.memory.sourceId &&
-                    otherCreep.ticksToLive > 100) {
+                if (otherCreep.memory.role === 'miner' && otherCreep.memory.sourceId) {
                     sourceAssignments[otherCreep.memory.sourceId] =
                         (sourceAssignments[otherCreep.memory.sourceId] || 0) + 1;
                 }
@@ -776,8 +587,8 @@ var role_miner = {
                 }
             }
 
-            // 分配矿工到能源
-            if (minAssignedSource) {
+            // 只有当矿工数量为0时才分配新矿工到这个能源
+            if (minAssignedSource && minAssignedCount === 0) {
                 creep.memory.sourceId = minAssignedSource;
                 const source = Game.getObjectById(minAssignedSource);
                 const path = creep.pos.findPathTo(source, {
@@ -785,7 +596,40 @@ var role_miner = {
                     ignoreCreeps: true
                 });
                 creep.memory.cachedPath = path;
-                console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}，当前矿工数量：${minAssignedCount}`);
+                console.log(`矿工 ${creep.name} 被分配到能量源 ${minAssignedSource}`);
+            } else if (minAssignedSource && minAssignedCount > 0) {
+                // 如果所有能源都已有矿工，检查是否有即将死亡的矿工
+                let replacementFound = false;
+                for (const name in Game.creeps) {
+                    const otherCreep = Game.creeps[name];
+                    if (otherCreep.memory.role === 'miner' &&
+                        otherCreep.memory.sourceId &&
+                        otherCreep.ticksToLive < 150) { // 如果矿工剩余寿命不足150tick
+                        creep.memory.sourceId = otherCreep.memory.sourceId;
+                        creep.memory.replacingMiner = otherCreep.name;
+                        const source = Game.getObjectById(otherCreep.memory.sourceId);
+                        const path = creep.pos.findPathTo(source, {
+                            serialize: true,
+                            ignoreCreeps: true
+                        });
+                        creep.memory.cachedPath = path;
+                        console.log(`矿工 ${creep.name} 将替换即将死亡的矿工 ${otherCreep.name}`);
+                        replacementFound = true;
+                        break;
+                    }
+                }
+
+                // 如果没有找到需要替换的矿工，则选择矿工最少的能源
+                if (!replacementFound) {
+                    creep.memory.sourceId = minAssignedSource;
+                    const source = Game.getObjectById(minAssignedSource);
+                    const path = creep.pos.findPathTo(source, {
+                        serialize: true,
+                        ignoreCreeps: true
+                    });
+                    creep.memory.cachedPath = path;
+                    console.log(`矿工 ${creep.name} 被分配到已有矿工的能量源 ${minAssignedSource}`);
+                }
             } else {
                 // 如果找不到能量源，移动到控制器附近等待
                 if (creep.room.controller) {
@@ -799,20 +643,24 @@ var role_miner = {
 
         // 寻找附近的容器
         if (!creep.memory.containerId) {
+            // 检查是否有其他矿工已经绑定了这个能源附近的容器
+            let containerAlreadyAssigned = false;
+            let nearestContainer = null;
+
             // 查找附近的容器
             const containers = creep.pos.findInRange(FIND_STRUCTURES, 3, {
                 filter: s => s.structureType === STRUCTURE_CONTAINER
             });
 
             if (containers.length > 0) {
+                nearestContainer = containers[0];
+
                 // 检查这个容器是否已被其他矿工绑定
-                let containerAlreadyAssigned = false;
                 for (const name in Game.creeps) {
                     const otherCreep = Game.creeps[name];
                     if (otherCreep.id !== creep.id &&
                         otherCreep.memory.role === 'miner' &&
-                        otherCreep.memory.containerId === containers[0].id &&
-                        otherCreep.ticksToLive > creep.ticksToLive) { // 比较寿命，让寿命更长的矿工优先绑定
+                        otherCreep.memory.containerId === nearestContainer.id) {
                         containerAlreadyAssigned = true;
                         break;
                     }
@@ -820,8 +668,8 @@ var role_miner = {
 
                 // 如果容器未被绑定，则绑定它
                 if (!containerAlreadyAssigned) {
-                    creep.memory.containerId = containers[0].id;
-                    console.log(`矿工 ${creep.name} 绑定到容器 ${containers[0].id}`);
+                    creep.memory.containerId = nearestContainer.id;
+                    console.log(`矿工 ${creep.name} 绑定到容器 ${nearestContainer.id}`);
                 }
             }
         }
@@ -832,6 +680,7 @@ var role_miner = {
         if (container) {
             if (!creep.pos.isEqualTo(container.pos)) {
                 creep.moveTo(container, {
+                    visualizePathStyle: { stroke: '#ffaa00' },
                     reusePath: 5
                 });
             } else {
@@ -861,6 +710,7 @@ var role_miner = {
                         // fallback：如果 moveByPath 失败，则直接 moveTo
                         if (moveResult < 0) {
                             creep.moveTo(source, {
+                                visualizePathStyle: { stroke: '#ffaa00' },
                                 reusePath: 3
                             });
                             // 如果移动失败，重新计算路径
@@ -868,6 +718,7 @@ var role_miner = {
                         }
                     } else {
                         creep.moveTo(source, {
+                            visualizePathStyle: { stroke: '#ffaa00' },
                             reusePath: 3
                         });
                     }
@@ -884,7 +735,9 @@ var role_miner = {
 
                     if (container) {
                         if (creep.transfer(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                            creep.moveTo(container);
+                            creep.moveTo(container, {
+                                visualizePathStyle: { stroke: '#ffffff' }
+                            });
                         }
                     } else {
                         // 如果找不到容器，尝试建造一个容器
@@ -910,9 +763,10 @@ var role_miner = {
             // 添加卡住检测
             if (creep.memory.lastPos &&
                 creep.memory.lastPos.x === creep.pos.x &&
-                creep.memory.lastPos.y === creep.pos.y) {
+                creep.memory.lastPos.y === creep.pos.y &&
+                creep.memory.stuckCount) {
 
-                creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
+                creep.memory.stuckCount++;
 
                 // 如果卡住超过10个tick，重新计算路径
                 if (creep.memory.stuckCount > 10) {
@@ -924,7 +778,7 @@ var role_miner = {
                 }
             } else {
                 creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
-                creep.memory.stuckCount = 0; // 重置卡住计数
+                creep.memory.stuckCount = (creep.memory.stuckCount || 0) + 1;
             }
         }
     }
@@ -932,16 +786,18 @@ var role_miner = {
 
 var role_collector = {
   run(creep) {
-    const withdrawOrMove = (target, resourceType) => {
+    const withdrawOrMove = (target, resourceType, say) => {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(target);
+        creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
+      if (say) creep.say(say);
     };
 
-    const pickupOrMove = (resource) => {
+    const pickupOrMove = (resource, say) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(resource);
+        creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
+      if (say) creep.say(say);
     };
 
     // 🚨 战时策略：优先支援塔、防止浪费资源
@@ -953,7 +809,7 @@ var role_collector = {
         });
         if (tower) {
           if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(tower);
+            creep.moveTo(tower, { visualizePathStyle: { stroke: '#ff0000' } });
           }
           return;
         }
@@ -964,7 +820,8 @@ var role_collector = {
 
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn);
+        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -985,7 +842,7 @@ var role_collector = {
       if (target) {
         for (const resourceType in creep.store) {
           if (creep.transfer(target, resourceType) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(target);
+            creep.moveTo(target, { visualizePathStyle: { stroke: '#ffffff' } });
             break;
           }
         }
@@ -1003,7 +860,7 @@ var role_collector = {
       dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
     }
 
-    if (dropped) return pickupOrMove(dropped);
+    if (dropped) return pickupOrMove(dropped, '🧹 收集');
 
     const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
       filter: t => t.store && t.store.getUsedCapacity() > 0
@@ -1012,7 +869,7 @@ var role_collector = {
     if (tombstone) {
       for (const res in tombstone.store) {
         if (tombstone.store[res] > 0) {
-          withdrawOrMove(tombstone, res);
+          withdrawOrMove(tombstone, res, '💀 收集');
           return;
         }
       }
@@ -1025,7 +882,7 @@ var role_collector = {
     if (ruin) {
       for (const res in ruin.store) {
         if (ruin.store[res] > 0) {
-          withdrawOrMove(ruin, res);
+          withdrawOrMove(ruin, res, '🏚️ 收集');
           return;
         }
       }
@@ -1310,15 +1167,15 @@ var spawnManager$1 = {
         if (!spawn || spawn.spawning) return;
 
         // 根据RCL和情况动态调整所需数量
-        const baseHarvesters = room.controller.level < 3 ? 3 : 2;
+        const baseHarvesters = 2;//room.controller.level < 3 ? 2 : 2;
         const desiredBuilders = room.find(FIND_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
-        const desiredRepairers = room.find(FIND_STRUCTURES, {
+        const desiredRepairers =  room.find(FIND_STRUCTURES, {
             filter: s => s.hits < s.hitsMax * 0.8 &&
                 (s.structureType !== STRUCTURE_WALL || s.hits < 10000) &&
                 (s.structureType !== STRUCTURE_RAMPART || s.hits < 10000)
-        }).length > 0 ? 2 : 1;
+        }).length > 0 ? 1 : 1;
         
-        const desiredMiners = room.controller.level >= 2 ? 3 : 0;
+        const desiredMiners = room.controller.level >= 2 ? 2 : 0;
 
         // 检查是否有掉落资源或墓碑来决定是否需要收集者
         const droppedResources = room.find(FIND_DROPPED_RESOURCES);

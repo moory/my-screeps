@@ -1,26 +1,5 @@
 module.exports = {
     run(creep) {
-        // 移动到目标的优化函数
-        const moveToTarget = (target, pathType, visualStyle = { stroke: '#ffaa00' }) => {
-            // 如果没有路径缓存或者到了刷新时间，重新计算路径
-            if (!creep.memory[pathType] || Game.time % 50 === 0) {
-                creep.memory[pathType] = creep.pos.findPathTo(target, {
-                    serialize: true,
-                    ignoreCreeps: true,
-                    maxOps: 500,
-                    range: 1
-                });
-            }
-            // 使用缓存的路径移动
-            const moveResult = creep.moveByPath(creep.memory[pathType]);
-            
-            // 如果移动失败，清除路径缓存并尝试直接移动
-            if (moveResult !== OK && moveResult !== ERR_TIRED) {
-                delete creep.memory[pathType];
-                creep.moveTo(target, { visualizePathStyle: visualStyle, reusePath: 5 });
-            }
-        };
-
         // 检查房间是否处于攻击状态
         if (creep.room.memory.underAttack) {
             // 如果有能量，优先修复防御建筑
@@ -32,7 +11,7 @@ module.exports = {
 
                 if (damagedTower) {
                     if (creep.repair(damagedTower) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(damagedTower, 'towerPath');
+                        creep.moveTo(damagedTower, { visualizePathStyle: { stroke: '#ff0000' } });
                     }
                     return;
                 }
@@ -46,7 +25,7 @@ module.exports = {
 
                 if (barrier) {
                     if (creep.repair(barrier) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(barrier, 'barrierPath');
+                        creep.moveTo(barrier, { visualizePathStyle: { stroke: '#ff0000' } });
                     }
                     return;
                 }
@@ -56,13 +35,11 @@ module.exports = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
-            // 清除修理目标的路径缓存
-            delete creep.memory.repairPath;
+            creep.say('🔄 采集');
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
-            // 清除能量源的路径缓存
-            delete creep.memory.energyPath;
+            creep.say('🔧 修理');
         }
 
         // 修理模式
@@ -95,14 +72,14 @@ module.exports = {
 
             if (target) {
                 if (creep.repair(target) === ERR_NOT_IN_RANGE) {
-                    moveToTarget(target, 'repairPath', { stroke: '#ffffff' });
+                    creep.moveTo(target, { visualizePathStyle: { stroke: '#ff00ff' } });
                 }
             } else {
                 // 没有修理目标时，转为升级控制器
                 const controller = creep.room.controller;
                 if (controller) {
                     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(controller, 'controllerPath', { stroke: '#ffffff' });
+                        creep.moveTo(controller, { visualizePathStyle: { stroke: '#ffffff' } });
                     }
                 }
             }
@@ -117,7 +94,7 @@ module.exports = {
 
             if (container) {
                 if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    moveToTarget(container, 'containerPath');
+                    creep.moveTo(container, { visualizePathStyle: { stroke: '#ffaa00' } });
                 }
             } else {
                 // 其次捡取掉落的能量
@@ -127,14 +104,14 @@ module.exports = {
 
                 if (droppedEnergy) {
                     if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-                        moveToTarget(droppedEnergy, 'droppedPath');
+                        creep.moveTo(droppedEnergy, { visualizePathStyle: { stroke: '#ffaa00' } });
                     }
                 } else {
                     // 最后从能量源直接采集
                     const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
                     if (source) {
                         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-                            moveToTarget(source, 'sourcePath');
+                            creep.moveTo(source, { visualizePathStyle: { stroke: '#ffaa00' } });
                         }
                     }
                 }
