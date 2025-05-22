@@ -29,6 +29,7 @@ module.exports = {
         // 1. 当采集状态且能量达到80%以上时切换到运输模式
         // 2. 当运输状态且能量低于20%时切换到采集模式
         // 3. 当能量源耗尽且背包有能量时切换到运输模式
+        // 4. 当所有Extension和Spawn都满了，优先考虑其他目标
         const capacityThreshold = creep.store.getCapacity() * 0.8;
         const emptyThreshold = creep.store.getCapacity() * 0.2;
         
@@ -190,6 +191,14 @@ module.exports = {
                 }
             }
 
+            // 如果仍然没有目标，考虑切换回采集模式
+            if (!target && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= capacityThreshold) {
+                creep.memory.harvesting = true;
+                creep.say('🔄 采集');
+                delete creep.memory.targetId;
+                return;
+            }
+
             if (target) {
                 const result = (target.structureType === STRUCTURE_CONTROLLER)
                     ? creep.upgradeController(target)
@@ -211,39 +220,99 @@ module.exports = {
     
     // 寻找需要能量的目标
     findEnergyTarget(creep) {
-        // 优先级：spawn/extension > tower > storage > container > controller
-        let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-            filter: s =>
-                (s.structureType === STRUCTURE_EXTENSION ||
-                    s.structureType === STRUCTURE_SPAWN) &&
-                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-        });
+        // 检查房间能量状态
+        const roomEnergySufficient = this.isRoomEnergySufficient(creep.room);
         
-        if (!target) {
-            target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+        // 如果房间能量充足（所有Extension和Spawn都满了），调整优先级
+        if (roomEnergySufficient) {
+            // 优先级调整为：tower > storage > 升级控制器 > container
+            let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
                 filter: s => s.structureType === STRUCTURE_TOWER &&
                     s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
-        }
-
-        if (!target) {
-            target = creep.room.storage &&
-                creep.room.storage.store.getFreeCapacity(RESOURCE_ENERGY) > 0 ?
-                creep.room.storage : null;
-        }
-        
-        if (!target) {
-            target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+            
+            if (!target) {
+                // 检查是否有storage并且未满
+                target = creep.room.storage &&
+                    creep.room.storage.store.getFreeCapacity(RESOURCE_ENERGY) > 0 ?
+                    creep.room.storage : null;
+            }
+            
+            // 如果没有tower和storage需要能量，考虑升级控制器
+            if (!target && creep.room.controller) {
+                // 检查控制器是否接近降级
+                const needsUrgentUpgrade = creep.room.controller.ticksToDowngrade < 10000;
+                
+                if (needsUrgentUpgrade || Math.random() < 0.7) { // 70%概率选择升级控制器
+                    target = creep.room.controller;
+                }
+            }
+            
+            // 如果不升级控制器，考虑container
+            if (!target) {
+                target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                    filter: s =>
+                        s.structureType === STRUCTURE_CONTAINER &&
+                        s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                });
+            }
+            
+            // 如果还是没有目标，默认选择控制器
+            if (!target && creep.room.controller) {
+                target = creep.room.controller;
+            }
+            
+            return target;
+        } else {
+            // 房间能量不足，使用原来的优先级
+            // 优先级：spawn/extension > tower > storage > container > controller
+            let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
                 filter: s =>
-                    s.structureType === STRUCTURE_CONTAINER &&
+                    (s.structureType === STRUCTURE_EXTENSION ||
+                        s.structureType === STRUCTURE_SPAWN) &&
                     s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
             });
-        }
+            
+            if (!target) {
+                target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                    filter: s => s.structureType === STRUCTURE_TOWER &&
+                        s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                });
+            }
 
-        if (!target && creep.room.controller) {
-            target = creep.room.controller;
+            if (!target) {
+                target = creep.room.storage &&
+                    creep.room.storage.store.getFreeCapacity(RESOURCE_ENERGY) > 0 ?
+                    creep.room.storage : null;
+            }
+            
+            if (!target) {
+                target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                    filter: s =>
+                        s.structureType === STRUCTURE_CONTAINER &&
+                        s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                });
+            }
+
+            if (!target && creep.room.controller) {
+                target = creep.room.controller;
+            }
+            
+            return target;
         }
+    },
+    
+    // 检查房间能量是否充足（所有Extension和Spawn都满了）
+    isRoomEnergySufficient(room) {
+        // 获取所有的Extension和Spawn
+        const energyStructures = room.find(FIND_STRUCTURES, {
+            filter: s => 
+                (s.structureType === STRUCTURE_EXTENSION || 
+                 s.structureType === STRUCTURE_SPAWN) &&
+                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
         
-        return target;
+        // 如果没有找到需要能量的Extension或Spawn，说明都已经满了
+        return energyStructures.length === 0;
     }
 };
