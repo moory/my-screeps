@@ -5,7 +5,7 @@ module.exports = {
       // 在受到攻击时，升级者应该撤退到安全区域
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
-        creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
+        safeMoveTo(creep, spawn, { visualizePathStyle: { stroke: '#ff0000' } });
         creep.say('🚨 撤退!');
         return;
       }
@@ -26,7 +26,7 @@ module.exports = {
       const controller = creep.room.controller;
       if (controller) {
         if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(controller, {
+          safeMoveTo(creep, controller, {
             visualizePathStyle: { stroke: '#ffffff' },
             reusePath: 5
           });
@@ -44,7 +44,7 @@ module.exports = {
 
       if (container) {
         if (creep.withdraw(container, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-          creep.moveTo(container, {
+          safeMoveTo(creep, container, {
             visualizePathStyle: { stroke: '#ffaa00' },
             reusePath: 3
           });
@@ -57,7 +57,7 @@ module.exports = {
 
         if (droppedEnergy) {
           if (creep.pickup(droppedEnergy) === ERR_NOT_IN_RANGE) {
-            creep.moveTo(droppedEnergy, {
+            safeMoveTo(creep, droppedEnergy, {
               visualizePathStyle: { stroke: '#ffaa00' },
               reusePath: 3
             });
@@ -67,7 +67,7 @@ module.exports = {
           const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
           if (source) {
             if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-              creep.moveTo(source, {
+              safeMoveTo(creep, source, {
                 visualizePathStyle: { stroke: '#ffaa00' },
                 reusePath: 3
               });
@@ -96,3 +96,29 @@ module.exports = {
     }
   }
 };
+
+function safeMoveTo(creep, target, opts = {}) {
+  return creep.moveTo(target, {
+    visualizePathStyle: { stroke: '#ffaa00' },
+    reusePath: 3,
+    ...opts,
+    costCallback: (roomName, costMatrix) => {
+      const room = Game.rooms[roomName];
+      if (!room) return;
+
+      const matrix = costMatrix.clone();
+
+      // 禁用四条边缘
+      for (let x = 0; x < 50; x++) {
+        matrix.set(x, 0, 255);
+        matrix.set(x, 49, 255);
+      }
+      for (let y = 0; y < 50; y++) {
+        matrix.set(0, y, 255);
+        matrix.set(49, y, 255);
+      }
+
+      return matrix;
+    }
+  });
+}
