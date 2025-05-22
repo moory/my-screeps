@@ -33,23 +33,35 @@ var role_harvester = {
             }
         }
 
-        // 设置工作状态
-        if (creep.memory.harvesting && creep.store.getFreeCapacity() === 0) {
+        // 优化工作状态切换逻辑
+        // 1. 当采集状态且能量达到80%以上时切换到运输模式
+        // 2. 当运输状态且能量低于20%时切换到采集模式
+        // 3. 当能量源耗尽且背包有能量时切换到运输模式
+        const capacityThreshold = creep.store.getCapacity() * 0.8;
+        const emptyThreshold = creep.store.getCapacity() * 0.2;
+        
+        if (creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) >= capacityThreshold) {
             creep.memory.harvesting = false;
             creep.say('🚚 运输');
+            // 提前规划运输目标
+            creep.memory.targetId = this.findEnergyTarget(creep);
         }
-        if (!creep.memory.harvesting && creep.store[RESOURCE_ENERGY] === 0) {
+        if (!creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= emptyThreshold) {
             creep.memory.harvesting = true;
             creep.say('🔄 采集');
             // 重新选择能量源
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
+            delete creep.memory.targetId;
         }
 
         // 自动清理无效内存
         if (creep.memory.sourceId && !Game.getObjectById(creep.memory.sourceId)) {
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
+        }
+        if (creep.memory.targetId && !Game.getObjectById(creep.memory.targetId)) {
+            delete creep.memory.targetId;
         }
 
         // 采集模式
@@ -119,6 +131,12 @@ var role_harvester = {
                         reusePath: 3
                     });
                 }
+                // 如果容器能量不多但已经获取了一些能量，考虑提前切换到运输模式
+                if (container.store[RESOURCE_ENERGY] < 50 && creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
+                    creep.memory.harvesting = false;
+                    creep.say('🚚 运输');
+                    creep.memory.targetId = this.findEnergyTarget(creep);
+                }
             } else if (source) {
                 const harvestResult = creep.harvest(source);
                 if (harvestResult === ERR_NOT_IN_RANGE) {
@@ -144,33 +162,40 @@ var role_harvester = {
                             reusePath: 3
                         });
                     }
-                } else if (harvestResult === ERR_NOT_ENOUGH_RESOURCES && creep.store[RESOURCE_ENERGY] > 0) {
+                } else if (harvestResult === ERR_NOT_ENOUGH_RESOURCES) {
                     // 如果能量源已空但背包有能量，切换到运输模式
-                    creep.memory.harvesting = false;
-                    creep.say('🚚 运输');
+                    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
+                        creep.memory.harvesting = false;
+                        creep.say('🚚 运输');
+                        creep.memory.targetId = this.findEnergyTarget(creep);
+                    } else {
+                        // 如果背包能量太少，寻找新的能量源
+                        delete creep.memory.sourceId;
+                        delete creep.memory.cachedPath;
+                    }
                 }
             }
         } else {
             // 能量运输逻辑
-            let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                filter: s =>
-                    (s.structureType === STRUCTURE_EXTENSION ||
-                        s.structureType === STRUCTURE_SPAWN ||
-                        s.structureType === STRUCTURE_TOWER) &&
-                    s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-            });
-
-            if (!target) {
-                target = creep.room.storage ||  // 优先使用Storage
-                    creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                        filter: s =>
-                            s.structureType === STRUCTURE_CONTAINER &&
-                            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
-                    });
+            let target;
+            
+            // 如果已经有目标ID，直接使用
+            if (creep.memory.targetId) {
+                target = Game.getObjectById(creep.memory.targetId);
+                // 如果目标不再需要能量，清除目标
+                if (target && target.structureType !== STRUCTURE_CONTROLLER && 
+                    target.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+                    delete creep.memory.targetId;
+                    target = null;
+                }
             }
-
-            if (!target && creep.room.controller) {
-                target = creep.room.controller;
+            
+            // 如果没有有效目标，重新寻找
+            if (!target) {
+                target = this.findEnergyTarget(creep);
+                if (target) {
+                    creep.memory.targetId = target.id;
+                }
             }
 
             if (target) {
@@ -191,6 +216,44 @@ var role_harvester = {
             }
         }
     },
+    
+    // 寻找需要能量的目标
+    findEnergyTarget(creep) {
+        // 优先级：spawn/extension > tower > storage > container > controller
+        let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+            filter: s =>
+                (s.structureType === STRUCTURE_EXTENSION ||
+                    s.structureType === STRUCTURE_SPAWN) &&
+                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+        
+        if (!target) {
+            target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                filter: s => s.structureType === STRUCTURE_TOWER &&
+                    s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            });
+        }
+
+        if (!target) {
+            target = creep.room.storage &&
+                creep.room.storage.store.getFreeCapacity(RESOURCE_ENERGY) > 0 ?
+                creep.room.storage : null;
+        }
+        
+        if (!target) {
+            target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                filter: s =>
+                    s.structureType === STRUCTURE_CONTAINER &&
+                    s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+            });
+        }
+
+        if (!target && creep.room.controller) {
+            target = creep.room.controller;
+        }
+        
+        return target;
+    }
 };
 
 var role_builder = {
