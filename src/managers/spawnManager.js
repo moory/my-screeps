@@ -10,6 +10,7 @@ module.exports = {
         const miners = getCreepsByRole('miner');
         const collectors = getCreepsByRole('collector');
         const defenders = getCreepsByRole('defender');
+        const transporters = getCreepsByRole('transporter');
 
         const spawn = room.find(FIND_MY_SPAWNS)[0];
         if (!spawn || spawn.spawning) return;
@@ -37,6 +38,9 @@ module.exports = {
         // 如果有掉落资源、墓碑或废墟，则需要收集者
         const desiredCollectors = (droppedResources.length > 0 || tombstones.length > 0 || ruins.length > 0) ? 1 : 0;
         
+        // 运输者数量：根据房间等级和矿工数量决定
+        const desiredTransporters = 1;//room.controller.level >= 3 ? Math.min(miners.length, 2) : 0;
+
         // 优化后的身体部件模板 - 根据房间等级动态调整
         const bodyTemplates = {
             // 采集者：基础配置更轻量，适合低级房间
@@ -82,6 +86,13 @@ module.exports = {
                 base: [CARRY, CARRY, MOVE, MOVE],
                 pattern: [CARRY, CARRY, MOVE],
                 maxPatternRepeats: room.controller.level >= 4 ? 3 : 1
+            },
+            
+            // 运输者：专注于运输能量
+            transporter: {
+                base: [CARRY, CARRY, CARRY, CARRY, MOVE, MOVE],
+                pattern: [CARRY, CARRY, MOVE],
+                maxPatternRepeats: room.controller.level >= 4 ? 4 : 2
             }
         };
 
@@ -241,6 +252,7 @@ module.exports = {
             { condition: repairers.length < desiredRepairers, role: 'repairer' },
             { condition: miners.length < desiredMiners, role: 'miner' },
             { condition: collectors.length < desiredCollectors && desiredCollectors > 0, role: 'collector' },
+            { condition: transporters.length < desiredTransporters && desiredTransporters > 0, role: 'transporter' },
         ];
 
         // 添加调试信息
