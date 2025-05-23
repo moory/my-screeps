@@ -364,12 +364,12 @@ module.exports = {
       
       // 如果卡住超过10个tick，尝试随机移动
       if (creep.memory.stuckCount > 10) {
+        creep.say('🚧 卡住了!'); // 先说话
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
         creep.move(directions[Math.floor(Math.random() * directions.length)]);
         delete creep.memory.targetId; // 清除当前目标
         delete creep.memory.sourceId;
         creep.memory.stuckCount = 0;
-        creep.say('🚧 卡住了!');
       }
     } else {
       creep.memory.lastPos = { x: creep.pos.x, y: creep.pos.y };
