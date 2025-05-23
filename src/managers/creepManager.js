@@ -5,6 +5,7 @@ const roleRepairer = require('../roles/role.repairer');
 const roleMiner = require('../roles/role.miner');
 const roleCollector = require('../roles/role.collector');
 const roleDefender = require('../roles/role.defender');
+const roleTransporter = require('../roles/role.transporter'); // 添加运输者模块
 
 module.exports = {
     run(room, mode = 'normal') {
@@ -39,6 +40,9 @@ module.exports = {
                     break;
                 case 'defender':
                     roleDefender.run(creep, mode);
+                    break;
+                case 'transporter':
+                    roleTransporter.run(creep, mode);
                     break;
             }
         }
