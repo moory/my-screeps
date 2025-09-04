@@ -1661,8 +1661,8 @@ var defenseManager$1 = {
        // 检查是否所有入侵者都是 NPC (Invader 或 Source Keeper)
        const isAllNPC = hostileUsers.every(username => username === 'Invader' || username === 'Source Keeper');
        
-       // 只有当入侵者不全是 NPC 或入侵者数量大于2时才发送通知
-       if (!isAllNPC || hostiles.length > 2) {
+       // 只有当入侵者不全是 NPC 或入侵者数量大于4时才发送通知
+       if (!isAllNPC || hostiles.length > 4) {
          Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
        }
       
