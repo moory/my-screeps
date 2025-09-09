@@ -933,14 +933,14 @@ var role_collector = {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
         creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
+      // if (say) creep.say(say);
     };
 
     const pickupOrMove = (resource, say) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
         creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
+      // if (say) creep.say(say);
     };
 
     // 🚨 战时策略：优先支援塔、防止浪费资源
@@ -1002,7 +1002,7 @@ var role_collector = {
       dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
     }
 
-    if (dropped) return pickupOrMove(dropped, '🧹 收集');
+    if (dropped) return pickupOrMove(dropped);
 
     const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
       filter: t => t.store && t.store.getUsedCapacity() > 0
@@ -1011,7 +1011,7 @@ var role_collector = {
     if (tombstone) {
       for (const res in tombstone.store) {
         if (tombstone.store[res] > 0) {
-          withdrawOrMove(tombstone, res, '💀 收集');
+          withdrawOrMove(tombstone, res);
           return;
         }
       }
@@ -1024,7 +1024,7 @@ var role_collector = {
     if (ruin) {
       for (const res in ruin.store) {
         if (ruin.store[res] > 0) {
-          withdrawOrMove(ruin, res, '🏚️ 收集');
+          withdrawOrMove(ruin, res);
           return;
         }
       }

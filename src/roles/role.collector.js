@@ -4,14 +4,14 @@ module.exports = {
       if (creep.withdraw(target, resourceType) === ERR_NOT_IN_RANGE) {
         creep.moveTo(target, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
+      // if (say) creep.say(say);
     };
 
     const pickupOrMove = (resource, say) => {
       if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
         creep.moveTo(resource, { visualizePathStyle: { stroke: '#ffaa00' } });
       }
-      if (say) creep.say(say);
+      // if (say) creep.say(say);
     };
 
     // 🚨 战时策略：优先支援塔、防止浪费资源
