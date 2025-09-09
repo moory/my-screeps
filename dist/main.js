@@ -28,7 +28,6 @@ var role_harvester = {
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
                 creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
-                creep.say('🚨 撤退!');
                 return;
             }
         }
@@ -43,13 +42,11 @@ var role_harvester = {
         
         if (creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) >= capacityThreshold) {
             creep.memory.harvesting = false;
-            creep.say('🚚 运输');
             // 提前规划运输目标
             creep.memory.targetId = this.findEnergyTarget(creep);
         }
         if (!creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= emptyThreshold) {
             creep.memory.harvesting = true;
-            creep.say('🔄 采集');
             // 重新选择能量源
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
@@ -135,7 +132,6 @@ var role_harvester = {
                 // 如果容器能量不多但已经获取了一些能量，考虑提前切换到运输模式
                 if (container.store[RESOURCE_ENERGY] < 50 && creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
                     creep.memory.harvesting = false;
-                    creep.say('🚚 运输');
                     creep.memory.targetId = this.findEnergyTarget(creep);
                 }
             } else if (source) {
@@ -144,7 +140,7 @@ var role_harvester = {
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
-                        // ✅ fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
+                        // fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
                         if (moveResult < 0) {
                             creep.moveTo(source, {
                                 visualizePathStyle: { stroke: '#ffaa00' },
@@ -167,7 +163,6 @@ var role_harvester = {
                     // 如果能量源已空但背包有能量，切换到运输模式
                     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
                         creep.memory.harvesting = false;
-                        creep.say('🚚 运输');
                         creep.memory.targetId = this.findEnergyTarget(creep);
                     } else {
                         // 如果背包能量太少，寻找新的能量源
@@ -202,7 +197,6 @@ var role_harvester = {
             // 如果仍然没有目标，考虑切换回采集模式
             if (!target && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= capacityThreshold) {
                 creep.memory.harvesting = true;
-                creep.say('🔄 采集');
                 delete creep.memory.targetId;
                 return;
             }
@@ -362,7 +356,6 @@ var role_builder = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -376,11 +369,9 @@ var role_builder = {
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.building = false;
-      creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
-      creep.say('🚧 建造');
     }
 
     // 建造模式
@@ -449,7 +440,6 @@ var role_upgrader = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         safeMoveTo(creep, spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -457,11 +447,9 @@ var role_upgrader = {
     // 设置工作状态
     if (creep.memory.upgrading && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.upgrading = false;
-      creep.say('🔄 采集');
     }
     if (!creep.memory.upgrading && creep.store.getFreeCapacity() === 0) {
       creep.memory.upgrading = true;
-      creep.say('⚡ 升级');
     }
 
     // 升级模式
@@ -603,11 +591,9 @@ var role_repairer = {
         // 设置工作状态
         if (creep.memory.repairing && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.repairing = false;
-            creep.say('🔄 采集');
         }
         if (!creep.memory.repairing && creep.store.getFreeCapacity() === 0) {
             creep.memory.repairing = true;
-            creep.say('🔧 修理');
         }
 
         // 修理模式
@@ -697,7 +683,6 @@ var role_miner = {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
                     creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-                    creep.say('🚨 受伤撤退!');
                     return;
                 }
             }
@@ -979,7 +964,6 @@ var role_collector = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -1144,7 +1128,6 @@ var role_transporter = {
         const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
         if (spawn && creep.pos.getRangeTo(spawn) > 3) {
           creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-          creep.say('🚨 撤退!');
           return;
         }
       }
@@ -1153,13 +1136,11 @@ var role_transporter = {
     // 状态切换逻辑
     if (creep.memory.state === this.STATE.COLLECTING && creep.store.getFreeCapacity() === 0) {
       creep.memory.state = this.STATE.DELIVERING;
-      creep.say('🚚 运输');
       // 提前规划运输目标
       delete creep.memory.targetId;
     }
     if (creep.memory.state === this.STATE.DELIVERING && creep.store.getUsedCapacity() === 0) {
       creep.memory.state = this.STATE.COLLECTING;
-      creep.say('🔄 收集');
       // 清除目标
       delete creep.memory.targetId;
       delete creep.memory.sourceId;
@@ -1466,7 +1447,6 @@ var role_transporter = {
       
       // 如果卡住超过10个tick，尝试随机移动
       if (creep.memory.stuckCount > 10) {
-        creep.say('🚧 卡住了!'); // 先说话
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
         creep.move(directions[Math.floor(Math.random() * directions.length)]);
         delete creep.memory.targetId; // 清除当前目标
@@ -1663,7 +1643,7 @@ var defenseManager$1 = {
        
        // 只有当入侵者不全是 NPC 或入侵者数量大于4时才发送通知
        if (!isAllNPC || hostiles.length > 4) {
-         Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
+         Game.notify(`警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
        }
       
       // 激活安全模式（如果可用且敌人数量超过阈值）
@@ -1681,12 +1661,12 @@ var defenseManager$1 = {
       // 在有敌人时，将所有 creep 召集到出生点附近
       if (room.memory.underAttack !== true) {
         room.memory.underAttack = true;
-        console.log(`⚠️ 房间 ${room.name} 正在遭受攻击！`);
+        console.log(`房间 ${room.name} 正在遭受攻击！`);
       }
     } else if (room.memory.underAttack) {
       // 解除警报
       delete room.memory.underAttack;
-      console.log(`✅ 房间 ${room.name} 的威胁已解除`);
+      console.log(`房间 ${room.name} 的威胁已解除`);
     }
   },
 };

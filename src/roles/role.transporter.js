@@ -41,7 +41,6 @@ module.exports = {
         const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
         if (spawn && creep.pos.getRangeTo(spawn) > 3) {
           creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-          creep.say('🚨 撤退!');
           return;
         }
       }
@@ -50,13 +49,11 @@ module.exports = {
     // 状态切换逻辑
     if (creep.memory.state === this.STATE.COLLECTING && creep.store.getFreeCapacity() === 0) {
       creep.memory.state = this.STATE.DELIVERING;
-      creep.say('🚚 运输');
       // 提前规划运输目标
       delete creep.memory.targetId;
     }
     if (creep.memory.state === this.STATE.DELIVERING && creep.store.getUsedCapacity() === 0) {
       creep.memory.state = this.STATE.COLLECTING;
-      creep.say('🔄 收集');
       // 清除目标
       delete creep.memory.targetId;
       delete creep.memory.sourceId;
@@ -364,7 +361,6 @@ module.exports = {
       
       // 如果卡住超过10个tick，尝试随机移动
       if (creep.memory.stuckCount > 10) {
-        creep.say('🚧 卡住了!'); // 先说话
         const directions = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT];
         creep.move(directions[Math.floor(Math.random() * directions.length)]);
         delete creep.memory.targetId; // 清除当前目标

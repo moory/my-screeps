@@ -10,7 +10,7 @@ module.exports = {
        
        // 只有当入侵者不全是 NPC 或入侵者数量大于4时才发送通知
        if (!isAllNPC || hostiles.length > 4) {
-         Game.notify(`⚠️ 警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
+         Game.notify(`警告：检测到 ${hostiles.length} 个敌对 creep 入侵房间 ${room.name}，入侵者：${hostileUsers.join(', ')}`);
        }
       
       // 激活安全模式（如果可用且敌人数量超过阈值）
@@ -28,12 +28,12 @@ module.exports = {
       // 在有敌人时，将所有 creep 召集到出生点附近
       if (room.memory.underAttack !== true) {
         room.memory.underAttack = true;
-        console.log(`⚠️ 房间 ${room.name} 正在遭受攻击！`);
+        console.log(`房间 ${room.name} 正在遭受攻击！`);
       }
     } else if (room.memory.underAttack) {
       // 解除警报
       delete room.memory.underAttack;
-      console.log(`✅ 房间 ${room.name} 的威胁已解除`);
+      console.log(`房间 ${room.name} 的威胁已解除`);
     }
   },
 };

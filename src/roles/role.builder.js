@@ -35,7 +35,6 @@ module.exports = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }
@@ -49,11 +48,9 @@ module.exports = {
     // 设置工作状态
     if (creep.memory.building && creep.store[RESOURCE_ENERGY] === 0) {
       creep.memory.building = false;
-      creep.say('🔄 采集');
     }
     if (!creep.memory.building && creep.store.getFreeCapacity() === 0) {
       creep.memory.building = true;
-      creep.say('🚧 建造');
     }
 
     // 建造模式

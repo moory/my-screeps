@@ -20,7 +20,6 @@ module.exports = {
             const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
             if (spawn && creep.pos.getRangeTo(spawn) > 3) {
                 creep.moveTo(spawn, {visualizePathStyle: {stroke: '#ff0000'}});
-                creep.say('🚨 撤退!');
                 return;
             }
         }
@@ -35,13 +34,11 @@ module.exports = {
         
         if (creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) >= capacityThreshold) {
             creep.memory.harvesting = false;
-            creep.say('🚚 运输');
             // 提前规划运输目标
             creep.memory.targetId = this.findEnergyTarget(creep);
         }
         if (!creep.memory.harvesting && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= emptyThreshold) {
             creep.memory.harvesting = true;
-            creep.say('🔄 采集');
             // 重新选择能量源
             delete creep.memory.sourceId;
             delete creep.memory.cachedPath;
@@ -127,7 +124,6 @@ module.exports = {
                 // 如果容器能量不多但已经获取了一些能量，考虑提前切换到运输模式
                 if (container.store[RESOURCE_ENERGY] < 50 && creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
                     creep.memory.harvesting = false;
-                    creep.say('🚚 运输');
                     creep.memory.targetId = this.findEnergyTarget(creep);
                 }
             } else if (source) {
@@ -136,7 +132,7 @@ module.exports = {
                     // 使用带缓存的移动
                     if (creep.memory.cachedPath && creep.memory.cachedPath.length > 0) {
                         const moveResult = creep.moveByPath(creep.memory.cachedPath);
-                        // ✅ fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
+                        // fallback：如果 moveByPath 返回 ERR_NOT_FOUND 或 ERR_NO_PATH，则直接 moveTo
                         if (moveResult < 0) {
                             creep.moveTo(source, {
                                 visualizePathStyle: { stroke: '#ffaa00' },
@@ -159,7 +155,6 @@ module.exports = {
                     // 如果能量源已空但背包有能量，切换到运输模式
                     if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > emptyThreshold) {
                         creep.memory.harvesting = false;
-                        creep.say('🚚 运输');
                         creep.memory.targetId = this.findEnergyTarget(creep);
                     } else {
                         // 如果背包能量太少，寻找新的能量源
@@ -194,7 +189,6 @@ module.exports = {
             // 如果仍然没有目标，考虑切换回采集模式
             if (!target && creep.store.getUsedCapacity(RESOURCE_ENERGY) <= capacityThreshold) {
                 creep.memory.harvesting = true;
-                creep.say('🔄 采集');
                 delete creep.memory.targetId;
                 return;
             }

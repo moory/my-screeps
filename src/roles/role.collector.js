@@ -35,7 +35,6 @@ module.exports = {
       const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
       if (spawn && creep.pos.getRangeTo(spawn) > 3) {
         creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-        creep.say('🚨 撤退!');
         return;
       }
     }

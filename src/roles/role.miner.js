@@ -7,7 +7,6 @@ module.exports = {
                 const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
                 if (spawn) {
                     creep.moveTo(spawn, { visualizePathStyle: { stroke: '#ff0000' } });
-                    creep.say('🚨 受伤撤退!');
                     return;
                 }
             }
