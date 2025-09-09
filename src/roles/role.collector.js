@@ -14,7 +14,7 @@ module.exports = {
       // if (say) creep.say(say);
     };
 
-    // 🚨 战时策略：优先支援塔、防止浪费资源
+    // 战时策略：优先支援塔、防止浪费资源
     if (creep.room.memory.underAttack) {
       if (creep.store[RESOURCE_ENERGY] > 0) {
         const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
@@ -39,7 +39,7 @@ module.exports = {
       }
     }
 
-    // 🎒 满载状态 -> 投递资源
+    // 满载状态 -> 投递资源
     if (creep.store.getFreeCapacity() === 0) {
 
       let target = creep.room.storage;
@@ -63,7 +63,7 @@ module.exports = {
       return;
     }
 
-    // 📦 背包未满 -> 搜集资源
+    // 背包未满 -> 搜集资源
     // 优先非能量
     let dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
       filter: r => r.resourceType !== RESOURCE_ENERGY
@@ -73,7 +73,7 @@ module.exports = {
       dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
     }
 
-    if (dropped) return pickupOrMove(dropped, '🧹 收集');
+    if (dropped) return pickupOrMove(dropped);
 
     const tombstone = creep.pos.findClosestByPath(FIND_TOMBSTONES, {
       filter: t => t.store && t.store.getUsedCapacity() > 0
@@ -82,7 +82,7 @@ module.exports = {
     if (tombstone) {
       for (const res in tombstone.store) {
         if (tombstone.store[res] > 0) {
-          withdrawOrMove(tombstone, res, '💀 收集');
+          withdrawOrMove(tombstone, res);
           return;
         }
       }
@@ -95,7 +95,7 @@ module.exports = {
     if (ruin) {
       for (const res in ruin.store) {
         if (ruin.store[res] > 0) {
-          withdrawOrMove(ruin, res, '🏚️ 收集');
+          withdrawOrMove(ruin, res);
           return;
         }
       }

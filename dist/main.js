@@ -943,7 +943,7 @@ var role_collector = {
       // if (say) creep.say(say);
     };
 
-    // 🚨 战时策略：优先支援塔、防止浪费资源
+    // 战时策略：优先支援塔、防止浪费资源
     if (creep.room.memory.underAttack) {
       if (creep.store[RESOURCE_ENERGY] > 0) {
         const tower = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
@@ -968,7 +968,7 @@ var role_collector = {
       }
     }
 
-    // 🎒 满载状态 -> 投递资源
+    // 满载状态 -> 投递资源
     if (creep.store.getFreeCapacity() === 0) {
 
       let target = creep.room.storage;
@@ -992,7 +992,7 @@ var role_collector = {
       return;
     }
 
-    // 📦 背包未满 -> 搜集资源
+    // 背包未满 -> 搜集资源
     // 优先非能量
     let dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
       filter: r => r.resourceType !== RESOURCE_ENERGY
